@@ -1,11 +1,16 @@
 <!--TEMPLATE tera-->
+<!--Tera Tutorial: https://tera.netlify.app/docs/#templates-->
+<!--Tera Supported Time Formats: https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html-->
 <!DOCTYPE html>
 <HTML>
 
 <BODY>
     <H1>Hello, World!</H1>
     <HR>
-    <FONT SIZE="4">Welcome, {{user}} !</FONT>
+    <FONT SIZE="4">Welcome, {{ user.name }} !</FONT>
+    <BR>Homepage: {{ user.homepage | safe }}
+    <BR> Jerusalem Time: <I>{{ now() | date(format="%Y-%m-%d %H:%M:%S", timezone="Asia/Jerusalem") }}</I>
+    <BR> Berlin Time: <I>{{ now() | date(format="%Y-%m-%d %H:%M:%S", timezone="Europe/Berlin") }}</I>
 </BODY>
 
 </HTML>

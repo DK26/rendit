@@ -27,6 +27,10 @@ fn load_context(name: &str) -> Context {
 }
 
 fn main() {
+    // When to use the `Tera` engine:
+    // `Used to Jinja2, Django templates, Liquid or Twig? You will feel right at home.`
+    // Want to use Jinja2, Django templates, Liquid or Twig? Use Tera (complete compatibly not guaranteed - More engine support may be added in the future)
+
     let template = "test";
     let template_contents = load_template(template);
     // println!("{template_contents}");

@@ -1,3 +1,6 @@
 {
-    "user": "Foobar"
+    "user": {
+        "name": "FooBar",
+        "homepage": "https://www.google.com"
+    }
 }
