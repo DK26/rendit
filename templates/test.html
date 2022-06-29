@@ -11,6 +11,8 @@
     <BR>Homepage: {{ user.homepage | safe }}
     <BR> Jerusalem Time: <I>{{ now() | date(format="%Y-%m-%d %H:%M:%S", timezone="Asia/Jerusalem") }}</I>
     <BR> Berlin Time: <I>{{ now() | date(format="%Y-%m-%d %H:%M:%S", timezone="Europe/Berlin") }}</I>
+    <HR>
+    <BR>Some Numbers: <I>{{ numbers | join(sep=", ") }}</I>
 </BODY>
 
 </HTML>
