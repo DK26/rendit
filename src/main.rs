@@ -1,11 +1,10 @@
 use clap::Parser;
 use handlebars::Handlebars;
-use regex::Regex;
+use regex::RegexBuilder;
 use std::{
     fs::{self, OpenOptions},
     io::{BufWriter, Write},
     path::{Path, PathBuf},
-    str::FromStr,
 };
 use tera::{Context, Tera};
 
@@ -13,15 +12,8 @@ enum Template {
     Tera(String),
     Handlebars(String),
     Liquid(String),
-    Unknown(String),
-    Raw(String),
-}
-
-enum TemplateEngine {
-    Tera,
-    Handlebars,
-    Unknown,
-    NotSpecified,
+    Unknown(String, String),
+    NoEngine(String),
 }
 
 // impl FromStr for TemplateEngine {
@@ -62,7 +54,49 @@ fn output_render<P: AsRef<Path>>(content: &str, path: P) {
         .expect("Unable to write rendered HTML");
 }
 
-fn load_template<P: AsRef<Path>>(path: P) -> Template {
+impl From<String> for Template {
+    /// Inspect the String contents for a magic comment `<!--template engine_name-->`, and return the appropriate `Template` enum variation for rendering.
+    fn from(contents: String) -> Self {
+        let re = RegexBuilder::new(r#"^(?:\s+)?<!--template\s+(?P<engine>\w+)\s?-->"#)
+            .case_insensitive(true)
+            .build()
+            .expect("Bad regex pattern.");
+
+        let mut re_caps = re.captures_iter(&contents);
+
+        if let Some(m) = re.find(&contents) {
+            let found_match = m.as_str();
+
+            // println!("Match: `{found_match}`");
+
+            let contents = contents.replacen(found_match, "", 1).trim().to_owned();
+
+            let cap = re_caps
+                .next()
+                .expect("Match without a capture? how is it possible?");
+
+            let engine = cap["engine"].to_lowercase();
+
+            println!("Detected Engine: `{engine}`");
+
+            // println!("New Template Contents: \n{contents}");
+
+            match engine.as_str() {
+                "tera" => Template::Tera(contents),
+                "hbs" | "handlebars" => Template::Handlebars(contents),
+                "liq" | "liquid" => Template::Liquid(contents),
+                unknown_engine => Template::Unknown(unknown_engine.to_owned(), contents),
+            }
+        } else {
+            Template::NoEngine(contents)
+        }
+    }
+}
+
+/// Loads a template file into a Template enum type.
+/// Decides on the engine type by first inspecting the file extension (`.tera`, `.hbs` or `.liq`).
+/// If no special extension is provided then the contents of the template are inspected for the magic comment `<!--TEMPLATE engine_name-->`.
+fn load_template_file<P: AsRef<Path>>(path: P) -> Template {
     let template_contents = fs::read_to_string(&path).expect("Unable to load raw template.");
 
     // if let Some(stem) = path.as_ref().file_stem() {
@@ -71,40 +105,17 @@ fn load_template<P: AsRef<Path>>(path: P) -> Template {
     // }
 
     if let Some(extension) = path.as_ref().extension() {
-        let extension = &*extension.to_string_lossy();
+        let file_extension = &*extension.to_string_lossy();
 
-        // println!("Extension: {extension}");
-
-        match extension {
+        match file_extension {
             "tera" => return Template::Tera(template_contents),
             "hbs" => return Template::Handlebars(template_contents),
             "liq" => return Template::Liquid(template_contents),
-            _ => {}
+            _ => {} // ignore unknown extensions
         };
     }
 
-    // TODO: Decode which type is the content and return it
-
-    let re =
-        Regex::new(r#"^(?:\s+)?<!--template\s+(?P<engine>\w+)\s?-->"#).expect("Bad regex pattern.");
-
-    let lowercase_template_contents = template_contents.to_lowercase();
-
-    let mut re_caps = re.captures_iter(&lowercase_template_contents);
-
-    if let Some(cap) = re_caps.next() {
-        let engine = &cap["engine"];
-        println!("Template Engine: `{engine}`");
-        // TODO: Remove engine comment from final product before passing
-        match engine {
-            "tera" => Template::Tera(template_contents),
-            "hbs" | "handlebars" => Template::Handlebars(template_contents),
-            "liq" | "liquid" => Template::Liquid(template_contents),
-            _ => Template::Unknown(template_contents),
-        }
-    } else {
-        Template::Raw(template_contents)
-    }
+    template_contents.into()
 }
 
 fn main() {
@@ -142,7 +153,7 @@ fn main() {
         rendered_output_file.to_string_lossy()
     );
 
-    let template_contents = load_template(args.template_file);
+    let template_contents = load_template_file(args.template_file);
 
     let result = match template_contents {
         Template::Tera(contents) => {
@@ -157,9 +168,9 @@ fn main() {
                 .render_template(&contents, &context)
                 .expect("Unable to render template.")
         }
-        Template::Liquid(contents) => todo!(),
-        Template::Unknown(_) => panic!("Unknown template engine."),
-        Template::Raw(raw) => raw,
+        Template::Liquid(_contents) => todo!("Implement Liquid engine usage"),
+        Template::Unknown(engine, _) => panic!("Unknown template engine: `{engine}`"),
+        Template::NoEngine(raw) => raw,
     };
 
     output_render(&result, rendered_output_file);
