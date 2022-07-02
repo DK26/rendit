@@ -85,15 +85,22 @@ fn load_template<P: AsRef<Path>>(path: P) -> Template {
 
     // TODO: Decode which type is the content and return it
 
-    let re = Regex::new(r#"^<!--TEMPLATE\s+(?P<engine>\w+)-->"#).expect("Bad regex pattern.");
+    let re = Regex::new(r#"^<!--template\s+(?P<engine>\w+)\s?-->"#).expect("Bad regex pattern.");
 
-    let mut re_caps = re.captures_iter(&template_contents);
+    let lowercase_template_contents = template_contents.to_lowercase();
+
+    let mut re_caps = re.captures_iter(&lowercase_template_contents);
 
     if let Some(cap) = re_caps.next() {
         let engine = &cap["engine"];
-        println!("Template Engine: {engine}");
+        println!("Template Engine: `{engine}`");
         // TODO: Remove engine comment from final product before passing
-        Template::Tera(template_contents)
+        match engine {
+            "tera" => Template::Tera(template_contents),
+            "hbs" | "handlebars" => Template::Handlebars(template_contents),
+            "liq" | "liquid" => Template::Liquid(template_contents),
+            _ => Template::Unknown(template_contents),
+        }
     } else {
         Template::Raw(template_contents)
     }
