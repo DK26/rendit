@@ -85,7 +85,8 @@ fn load_template<P: AsRef<Path>>(path: P) -> Template {
 
     // TODO: Decode which type is the content and return it
 
-    let re = Regex::new(r#"^<!--template\s+(?P<engine>\w+)\s?-->"#).expect("Bad regex pattern.");
+    let re =
+        Regex::new(r#"^(?:\s+)?<!--template\s+(?P<engine>\w+)\s?-->"#).expect("Bad regex pattern.");
 
     let lowercase_template_contents = template_contents.to_lowercase();
 
