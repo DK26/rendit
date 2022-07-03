@@ -1,7 +1,8 @@
 use clap::Parser;
-use handlebars::Handlebars;
+use handlebars::{Handlebars, TemplateError};
 use regex::RegexBuilder;
 use std::{
+    error::Error,
     fs::{self, OpenOptions},
     io::{BufWriter, Write},
     path::{Path, PathBuf},
@@ -16,18 +17,6 @@ enum Template {
     NoEngine(String),
 }
 
-// impl FromStr for TemplateEngine {
-//     type Err = ();
-
-//     fn from_str(template_str: &str) -> Result<Self, Self::Err> {
-//         Ok(match template_str {
-//             "tera" => Template::Tera(String::new()),
-//             "handlebars" | "hbs" => Template::Handlebars(String::new()),
-//             _ => Template::Unknown(String::new()),
-//         })
-//     }
-// }
-
 #[derive(Parser)]
 #[clap(
     author = env!("CARGO_PKG_AUTHORS"),
@@ -37,10 +26,23 @@ enum Template {
 )]
 struct Cli {
     /// A template file path, requiring a JSON file of the same name for context.
+    ///
     /// e.g. `my_template.html` should have a context file named `my_template.ctx.json` in the same directory.
     #[clap(value_parser)]
     template_file: PathBuf,
+
+    /// Sets the level of verbosity.
+    ///  
+    /// `-v` sets logging level to INFO
+    /// `-vv` sets logging level to DEBUG
+    #[clap(short, long, action = clap::ArgAction::Count)]
+    verbose: u8,
 }
+
+// TODO: STDIN support
+// TODO: By default render to stdout + Use `bat` for a Pretty Print
+// TODO: Add write to file option `--output <FILE PATH>`, `--output <FILE PATH>, stdout`
+// TODO: Add custom context file `--json-context`, `--context-file`, `--context <FILE PATH>`
 
 fn output_render<P: AsRef<Path>>(content: &str, path: P) {
     let file = OpenOptions::new()
@@ -67,8 +69,6 @@ impl From<String> for Template {
         if let Some(m) = re.find(&contents) {
             let found_match = m.as_str();
 
-            // println!("Match: `{found_match}`");
-
             let contents = contents.replacen(found_match, "", 1).trim().to_owned();
 
             let cap = re_caps
@@ -77,9 +77,7 @@ impl From<String> for Template {
 
             let engine = cap["engine"].to_lowercase();
 
-            println!("Detected Engine: `{engine}`");
-
-            // println!("New Template Contents: \n{contents}");
+            log::debug!("Detected Engine: `{engine}`");
 
             match engine.as_str() {
                 "tera" => Template::Tera(contents),
@@ -96,6 +94,8 @@ impl From<String> for Template {
 /// Loads a template file into a Template enum type.
 /// Decides on the engine type by first inspecting the file extension (`.tera`, `.hbs` or `.liq`).
 /// If no special extension is provided then the contents of the template are inspected for the magic comment `<!--TEMPLATE engine_name-->`.
+///
+/// Engine Names: `tera`, `handlebars` or `hbs`, `liquid` or `liq`
 fn load_template_file<P: AsRef<Path>>(path: P) -> Template {
     let template_contents = fs::read_to_string(&path).expect("Unable to load raw template.");
 
@@ -115,6 +115,7 @@ fn load_template_file<P: AsRef<Path>>(path: P) -> Template {
         };
     }
 
+    // Scan template contents for the magic comment to return the proper Template kind.
     template_contents.into()
 }
 
@@ -143,12 +144,9 @@ fn main() {
 
     let rendered_output_file = args.template_file.with_extension(&template_extension);
 
-    // #[cfg(build = "debug")]
-    println!("Rendering File: {}", args.template_file.to_string_lossy());
-    // #[cfg(build = "debug")]
-    println!("Context File: {}", template_context_file.to_string_lossy());
-    // #[cfg(build = "debug")]
-    println!(
+    log::info!("Rendering File: {}", args.template_file.to_string_lossy());
+    log::info!("Context File: {}", template_context_file.to_string_lossy());
+    log::info!(
         "Rendered Output File: {}",
         rendered_output_file.to_string_lossy()
     );
@@ -160,18 +158,62 @@ fn main() {
             let context =
                 Context::from_value(context).expect("Unable to create context from JSON.");
 
-            Tera::one_off(&contents, &context, true).expect("Unable to render template.")
+            match Tera::one_off(&contents, &context, true) {
+                Ok(rendered) => rendered,
+                Err(e) => {
+                    if let Some(source) = e.source() {
+                        eprintln!("{source}");
+                    }
+
+                    panic!("Unable to render template.");
+                }
+            }
         }
         Template::Handlebars(contents) => {
             let handlebars = Handlebars::new();
-            handlebars
-                .render_template(&contents, &context)
+            let render = handlebars.render_template(&contents, &context);
+            match render {
+                Ok(contents) => contents,
+                Err(e) => {
+                    if let Some(source) = e.source() {
+                        if let Some(template_error) = source.downcast_ref::<TemplateError>() {
+                            // TODO: PrettyPrint
+                            eprintln!("{template_error}");
+                        }
+                    }
+                    panic!("Unable to render template.");
+                }
+            }
+        }
+        Template::Liquid(contents) => {
+            let template = liquid::ParserBuilder::with_stdlib()
+                .build()
+                .expect("Unable to build Liquid parser.")
+                .parse(&contents);
+
+            let template = match template {
+                Ok(t) => t,
+                Err(e) => {
+                    // TODO: PrettyPrint
+                    eprintln!("{e}");
+                    panic!("Unable to parse template.");
+                }
+            };
+            // .expect("Unable to parse template.");
+
+            let globals = liquid::object!(&context);
+
+            template
+                .render(&globals)
                 .expect("Unable to render template.")
         }
-        Template::Liquid(_contents) => todo!("Implement Liquid engine usage"),
         Template::Unknown(engine, _) => panic!("Unknown template engine: `{engine}`"),
         Template::NoEngine(raw) => raw,
     };
 
+    // TODO: PrettyPrint
+    println!("{result}");
+
+    // TODO: Output to file only if output argument is given
     output_render(&result, rendered_output_file);
 }
