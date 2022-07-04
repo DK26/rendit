@@ -1,3 +1,4 @@
+use bat::PrettyPrinter;
 use clap::Parser;
 use handlebars::{Handlebars, TemplateError};
 use regex::RegexBuilder;
@@ -119,6 +120,18 @@ fn load_template_file<P: AsRef<Path>>(path: P) -> Template {
     template_contents.into()
 }
 
+fn pretty_print(content: &str, extension: Option<&str>) {
+    let bytes_content = content.as_bytes();
+    PrettyPrinter::new()
+        .language(extension.unwrap_or("html")) // Default: auto-detect
+        .line_numbers(false)
+        .grid(true)
+        .header(true)
+        .input(bat::Input::from_bytes(bytes_content))
+        .print()
+        .expect("Unable to pretty print.");
+}
+
 fn main() {
     // When to use the `Tera` engine:
     // `Used to Jinja2, Django templates, Liquid or Twig? You will feel right at home.`
@@ -132,7 +145,7 @@ fn main() {
         .expect("Template has no file extension.")
         .to_string_lossy();
 
-    let template_extension = "rendered.".to_string() + template_extension;
+    let rendered_template_extension = "rendered.".to_string() + template_extension;
 
     let template_context_file = args.template_file.with_extension("ctx.json");
 
@@ -142,7 +155,9 @@ fn main() {
     let context: serde_json::Value =
         serde_json::from_str(&context_json).expect("Unable to parse context JSON.");
 
-    let rendered_output_file = args.template_file.with_extension(&template_extension);
+    let rendered_output_file = args
+        .template_file
+        .with_extension(&rendered_template_extension);
 
     log::info!("Rendering File: {}", args.template_file.to_string_lossy());
     log::info!("Context File: {}", template_context_file.to_string_lossy());
@@ -151,7 +166,7 @@ fn main() {
         rendered_output_file.to_string_lossy()
     );
 
-    let template_contents = load_template_file(args.template_file);
+    let template_contents = load_template_file(&args.template_file);
 
     let result = match template_contents {
         Template::Tera(contents) => {
@@ -177,8 +192,9 @@ fn main() {
                 Err(e) => {
                     if let Some(source) = e.source() {
                         if let Some(template_error) = source.downcast_ref::<TemplateError>() {
-                            // TODO: PrettyPrint
-                            eprintln!("{template_error}");
+                            let template_error_string = format!("{template_error}");
+                            pretty_print(&template_error_string, Some(template_extension));
+                            // eprintln!("{template_error}");
                         }
                     }
                     panic!("Unable to render template.");
@@ -194,12 +210,12 @@ fn main() {
             let template = match template {
                 Ok(t) => t,
                 Err(e) => {
-                    // TODO: PrettyPrint
-                    eprintln!("{e}");
+                    let template_error_string = format!("{e}");
+                    pretty_print(&template_error_string, Some(template_extension));
+                    // eprintln!("{e}");
                     panic!("Unable to parse template.");
                 }
             };
-            // .expect("Unable to parse template.");
 
             let globals = liquid::object!(&context);
 
@@ -211,7 +227,15 @@ fn main() {
         Template::NoEngine(raw) => raw,
     };
 
-    // TODO: PrettyPrint
+    // Cancelled: PrettyPrint -> Characters are not standard and cannot be redirected properly with pipes.. for now.
+    // PrettyPrinter::new()
+    //     .language("html") // Default: auto-detect
+    //     .line_numbers(true)
+    //     .grid(true)
+    //     .header(true)
+    //     .input(bat::Input::from_bytes(result.as_bytes()))
+    //     .print()
+    //     .unwrap();
     println!("{result}");
 
     // TODO: Output to file only if output argument is given
