@@ -177,7 +177,8 @@ fn main() {
                 Ok(rendered) => rendered,
                 Err(e) => {
                     if let Some(source) = e.source() {
-                        eprintln!("{source}");
+                        log::error!("{source}");
+                        // eprintln!("{source}");
                     }
 
                     panic!("Unable to render template.");
