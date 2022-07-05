@@ -1,7 +1,9 @@
 use bat::PrettyPrinter;
 use clap::Parser;
 use handlebars::{Handlebars, TemplateError};
+use log::LevelFilter;
 use regex::RegexBuilder;
+use simplelog::TermLogger;
 use std::{
     error::Error,
     fs::{self, OpenOptions},
@@ -41,7 +43,7 @@ struct Cli {
 }
 
 // TODO: STDIN support
-// TODO: By default render to stdout + Use `bat` for a Pretty Print
+// TODO: By default render to stdout + Use `bat` for a Pretty Print (optional)
 // TODO: Add write to file option `--output <FILE PATH>`, `--output <FILE PATH>, stdout`
 // TODO: Add custom context file `--json-context`, `--context-file`, `--context <FILE PATH>`
 
@@ -158,6 +160,20 @@ fn main() {
     let rendered_output_file = args
         .template_file
         .with_extension(&rendered_template_extension);
+
+    let log_level = match args.verbose {
+        1 => LevelFilter::Info,
+        2 => LevelFilter::Debug,
+        _ => LevelFilter::Error,
+    };
+
+    TermLogger::init(
+        log_level,
+        simplelog::Config::default(),
+        simplelog::TerminalMode::Mixed,
+        simplelog::ColorChoice::Auto,
+    )
+    .expect("Unable to initialize logger.");
 
     log::info!("Rendering File: {}", args.template_file.to_string_lossy());
     log::info!("Context File: {}", template_context_file.to_string_lossy());
