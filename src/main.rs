@@ -28,26 +28,64 @@ enum Template {
     long_about = None
 )]
 struct Cli {
-    /// A template file path, requiring a JSON file of the same name for context.
+    /// The template file path, requiring a `default.ctx.json` context file or template specific context file
+    /// containing the template name and ending with the `.ctx.json` extension.
     ///
-    /// e.g. `my_template.html` should have a context file named `my_template.ctx.json` in the same directory.
-    #[clap(value_parser)]
-    template_file: PathBuf,
+    /// e.g. for `my_template.html` specific context file should be named `my_template.ctx.json` located in the same directory.
+    ///
+    /// NOTICE: Providing `TEMPLATE FILE` file, produces a default rendered output file with the proper extension `.rendered.<extension>`.
+    ///
+    /// NOTICE: By NOT providing `TEMPLATE FILE`, the CLI will attempt to read the template data from STDIN, WITHOUT producing a default `.rendered.<extension>` file.
+    #[clap(value_parser, value_name = "TEMPLATE FILE")]
+    template_file: Option<PathBuf>,
+
+    /// Override default context files with specified context file.
+    #[clap(
+        value_parser,
+        short,
+        long = "context-file",
+        value_name = "CONTEXT FILE"
+    )]
+    context_file: Option<PathBuf>,
+
+    #[clap(value_parser, short, long = "output", value_name = "OUTPUT FILE")]
+    output_file: Option<PathBuf>,
 
     /// Sets the level of verbosity.
     ///  
     /// `-v` sets logging level to INFO
     /// `-vv` sets logging level to DEBUG
+    ///
+    /// WARNING: Effects CLI output.
+    /// Sse `--output` switch if you wish to commit the rendered output to file.
     #[clap(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+
+    /// Print pretty, highlighted output to the terminal.
+    ///
+    /// WARNING: CLI output cannot be used for piping as ASCII/UTF-8 is transformed.
+    /// Use `--output` switch if you wish to commit the rendered output to file.
+    #[clap(short, long, action)]
+    pretty: bool,
+
+    /// Open rendered output file
+    #[clap(short = 'P', long, action)]
+    preview: bool,
+
+    /// Print rendered result to STDOUT
+    #[clap(short, long, action)]
+    stdout: bool,
+
+    /// Constantly render changes in template file.  
+    #[clap(short, long = "watch", value_name = "SECONDS", action)]
+    watch_seconds: Option<u8>,
 }
 
 // TODO: STDIN support
 // TODO: By default render to stdout + Use `bat` for a Pretty Print (optional)
-// TODO: Add write to file option `--output <FILE PATH>`, `--output <FILE PATH>, stdout`
-// TODO: Add custom context file `--json-context`, `--context-file`, `--context <FILE PATH>`
 
-fn output_render<P: AsRef<Path>>(content: &str, path: P) {
+/// Write `content` to file `path` using BufWriter
+fn write_to_file<P: AsRef<Path>>(content: &str, path: P) {
     let file = OpenOptions::new()
         .create(true)
         .write(true)
@@ -141,120 +179,127 @@ fn main() {
 
     let args = Cli::parse();
 
-    let template_extension = &*args
-        .template_file
-        .extension()
-        .expect("Template has no file extension.")
-        .to_string_lossy();
+    if let Some(template_file) = args.template_file {
+        // let template_extension = &*args
+        let template_extension = &*template_file
+            .extension()
+            .expect("Template has no file extension.")
+            .to_string_lossy();
 
-    let rendered_template_extension = "rendered.".to_string() + template_extension;
+        let rendered_template_extension = "rendered.".to_string() + template_extension;
 
-    let template_context_file = args.template_file.with_extension("ctx.json");
+        let template_context_file = template_file.with_extension("ctx.json");
 
-    let context_json =
-        fs::read_to_string(&template_context_file).expect("Unable to load template context.");
+        let context_json =
+            fs::read_to_string(&template_context_file).expect("Unable to load template context.");
 
-    let context: serde_json::Value =
-        serde_json::from_str(&context_json).expect("Unable to parse context JSON.");
+        let context: serde_json::Value =
+            serde_json::from_str(&context_json).expect("Unable to parse context JSON.");
 
-    let rendered_output_file = args
-        .template_file
-        .with_extension(&rendered_template_extension);
+        let rendered_output_file = template_file.with_extension(&rendered_template_extension);
 
-    let log_level = match args.verbose {
-        1 => LevelFilter::Info,
-        2 => LevelFilter::Debug,
-        _ => LevelFilter::Error,
-    };
+        let log_level = match args.verbose {
+            1 => LevelFilter::Info,
+            2 => LevelFilter::Debug,
+            _ => LevelFilter::Error,
+        };
 
-    TermLogger::init(
-        log_level,
-        simplelog::Config::default(),
-        simplelog::TerminalMode::Mixed,
-        simplelog::ColorChoice::Auto,
-    )
-    .expect("Unable to initialize logger.");
+        TermLogger::init(
+            log_level,
+            simplelog::Config::default(),
+            simplelog::TerminalMode::Mixed,
+            simplelog::ColorChoice::Auto,
+        )
+        .expect("Unable to initialize logger.");
 
-    log::info!("Rendering File: {}", args.template_file.to_string_lossy());
-    log::info!("Context File: {}", template_context_file.to_string_lossy());
-    log::info!(
-        "Rendered Output File: {}",
-        rendered_output_file.to_string_lossy()
-    );
+        log::info!("Rendering File: {}", template_file.to_string_lossy());
+        log::info!("Context File: {}", template_context_file.to_string_lossy());
 
-    let template_contents = load_template_file(&args.template_file);
+        let template_contents = load_template_file(&template_file);
 
-    let result = match template_contents {
-        Template::Tera(contents) => {
-            let context =
-                Context::from_value(context).expect("Unable to create context from JSON.");
+        let result = match template_contents {
+            Template::Tera(contents) => {
+                let context =
+                    Context::from_value(context).expect("Unable to create context from JSON.");
 
-            match Tera::one_off(&contents, &context, true) {
-                Ok(rendered) => rendered,
-                Err(e) => {
-                    if let Some(source) = e.source() {
-                        log::error!("{source}");
-                        // eprintln!("{source}");
-                    }
-
-                    panic!("Unable to render template.");
-                }
-            }
-        }
-        Template::Handlebars(contents) => {
-            let handlebars = Handlebars::new();
-            let render = handlebars.render_template(&contents, &context);
-            match render {
-                Ok(contents) => contents,
-                Err(e) => {
-                    if let Some(source) = e.source() {
-                        if let Some(template_error) = source.downcast_ref::<TemplateError>() {
-                            let template_error_string = format!("{template_error}");
-                            pretty_print(&template_error_string, Some(template_extension));
-                            // eprintln!("{template_error}");
+                match Tera::one_off(&contents, &context, true) {
+                    Ok(rendered) => rendered,
+                    Err(e) => {
+                        if let Some(source) = e.source() {
+                            log::error!("{source}");
+                            // eprintln!("{source}");
                         }
+
+                        panic!("Unable to render template.");
                     }
-                    panic!("Unable to render template.");
                 }
             }
-        }
-        Template::Liquid(contents) => {
-            let template = liquid::ParserBuilder::with_stdlib()
-                .build()
-                .expect("Unable to build Liquid parser.")
-                .parse(&contents);
-
-            let template = match template {
-                Ok(t) => t,
-                Err(e) => {
-                    let template_error_string = format!("{e}");
-                    pretty_print(&template_error_string, Some(template_extension));
-                    // eprintln!("{e}");
-                    panic!("Unable to parse template.");
+            Template::Handlebars(contents) => {
+                let handlebars = Handlebars::new();
+                let render = handlebars.render_template(&contents, &context);
+                match render {
+                    Ok(contents) => contents,
+                    Err(e) => {
+                        if let Some(source) = e.source() {
+                            if let Some(template_error) = source.downcast_ref::<TemplateError>() {
+                                let template_error_string = format!("{template_error}");
+                                pretty_print(&template_error_string, Some(template_extension));
+                                // eprintln!("{template_error}");
+                            }
+                        }
+                        panic!("Unable to render template.");
+                    }
                 }
-            };
+            }
+            Template::Liquid(contents) => {
+                let template = liquid::ParserBuilder::with_stdlib()
+                    .build()
+                    .expect("Unable to build Liquid parser.")
+                    .parse(&contents);
 
-            let globals = liquid::object!(&context);
+                let template = match template {
+                    Ok(t) => t,
+                    Err(e) => {
+                        let template_error_string = format!("{e}");
+                        pretty_print(&template_error_string, Some(template_extension));
+                        // eprintln!("{e}");
+                        panic!("Unable to parse template.");
+                    }
+                };
 
-            template
-                .render(&globals)
-                .expect("Unable to render template.")
+                let globals = liquid::object!(&context);
+
+                template
+                    .render(&globals)
+                    .expect("Unable to render template.")
+            }
+            Template::Unknown(engine, _) => panic!("Unknown template engine: `{engine}`"),
+            Template::NoEngine(raw) => raw,
+        };
+
+        // Cancelled: PrettyPrint -> Characters are not standard and cannot be redirected properly with pipes.. for now.
+        // PrettyPrinter::new()
+        //     .language("html") // Default: auto-detect
+        //     .line_numbers(true)
+        //     .grid(true)
+        //     .header(true)
+        //     .input(bat::Input::from_bytes(result.as_bytes()))
+        //     .print()
+        //     .unwrap();
+        let pretty_print_preconditions = [args.pretty, args.verbose > 0];
+
+        if pretty_print_preconditions.iter().any(|&c| c) {
+            pretty_print(&result, Some(template_extension))
+        } else {
+            println!("{result}");
         }
-        Template::Unknown(engine, _) => panic!("Unknown template engine: `{engine}`"),
-        Template::NoEngine(raw) => raw,
-    };
 
-    // Cancelled: PrettyPrint -> Characters are not standard and cannot be redirected properly with pipes.. for now.
-    // PrettyPrinter::new()
-    //     .language("html") // Default: auto-detect
-    //     .line_numbers(true)
-    //     .grid(true)
-    //     .header(true)
-    //     .input(bat::Input::from_bytes(result.as_bytes()))
-    //     .print()
-    //     .unwrap();
-    println!("{result}");
-
-    // TODO: Output to file only if output argument is given
-    output_render(&result, rendered_output_file);
+        // TODO: Output to file only if output argument is given
+        if let Some(output_path) = args.output_file {
+            println!("Activated Output Switch");
+            log::info!("Rendered Output File: {}", output_path.to_string_lossy());
+            write_to_file(&result, output_path);
+            // output_render(&result, rendered_output_file);
+        }
+    }
 }
