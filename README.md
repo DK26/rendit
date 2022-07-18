@@ -2,14 +2,6 @@
 
 A toy project for rendering HTML template files with multi-engine support.
 
-## Commandline Usage
-
-Usage Here
-
-### Commandline Parameters
-
-Parameters here
-
 ## Supported Templates
 
 | Engine     | Version | Guide                                                         |  
@@ -17,6 +9,14 @@ Parameters here
 | Tera       | v1.16.0 | <https://tera.netlify.app/docs/#templates>                    |
 | Handlebars | v4.3.2  | <https://handlebarsjs.com/guide/>                             |
 | Liquid     | v0.26.0 | <https://github.com/Shopify/liquid/wiki/Liquid-for-Designers> |
+
+## Commandline Usage
+
+Usage Here
+
+### Commandline Parameters
+
+Parameters here
 
 ## Template Examples
 
