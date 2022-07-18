@@ -2,6 +2,14 @@
 
 A toy project for rendering HTML template files with multi-engine support.
 
+## Features
+
+* Rendering supported template text data either from file or standard input
+* Made with pipping in mind
+* Use either default or specific context JSON file for rendering
+* Pretty console output for quick render reviewing
+* Output rendered result to file either with a proper default name or a specified one
+
 ## Supported Template Engines
 
 | Name       | Short  | Version | Guide                                                         |  
