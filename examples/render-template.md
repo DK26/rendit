@@ -4,11 +4,27 @@
 // Uses `default.ctx.json` file for context  
 `type my_template.html | render-template > my_template.rendered.html`
 
+`cat my_template.html | render-template > my_template.rendered.html`
+
+---
+
 `type my_template.html | render-template -c context.json > my_template.rendered.html`
+
+`cat my_template.html | render-template -c context.json > my_template.rendered.html`
+
+---
 
 `type ./my_template.html | render-template --output ./my_template.rendered.html | grep *`
 
+`cat ./my_template.html | render-template --output ./my_template.rendered.html | grep *`
+
+---
+
 `type my_template.html | render-template --engine tera > my_template.rendered.html`
+
+`cat my_template.html | render-template --engine tera > my_template.rendered.html`
+
+---
 
 *Missing input `<TEMPLATE FILE>` ? -check STDIN + print to STDOUT by default instead of file + If missing `-c` or `--context-file`, try default `default.ctx.json` file. If missing Exit with explanation  
 
@@ -68,4 +84,5 @@
 ---
 
 `template render my_template.html`
+
 `template new my_template.html`

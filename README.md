@@ -4,11 +4,11 @@ A toy project for rendering HTML template files with multi-engine support.
 
 ## Supported Template Engines
 
-| Engine     | Version | Guide                                                         |  
-| ---------- | ------- | ------------------------------------------------------------- |
-| Tera       | v1.16.0 | <https://tera.netlify.app/docs/#templates>                    |
-| Handlebars | v4.3.2  | <https://handlebarsjs.com/guide/>                             |
-| Liquid     | v0.26.0 | <https://github.com/Shopify/liquid/wiki/Liquid-for-Designers> |
+| Name       | Short  | Version | Guide                                                         |  
+| ---------- | ------ | ------- | ------------------------------------------------------------- |
+| Tera       | `tera` | v1.16.0 | <https://tera.netlify.app/docs/#templates>                    |
+| Handlebars | `hbs`  | v4.3.2  | <https://handlebarsjs.com/guide/>                             |
+| Liquid     | `liq`  | v0.26.0 | <https://github.com/Shopify/liquid/wiki/Liquid-for-Designers> |
 
 ## Commandline Usage
 
