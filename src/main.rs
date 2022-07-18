@@ -32,11 +32,11 @@ struct Cli {
     /// The template file path, requiring a `default.ctx.json` context file or template specific context file
     /// containing the template name and ending with the `.ctx.json` extension.
     ///
-    /// e.g. for `my_template.html` specific context file should be named `my_template.ctx.json` located in the same directory.
+    /// e.g. for `my_template.html` specific context file should be named `my_template.ctx.json` located under the same directory.
     ///
-    /// NOTICE: Providing `TEMPLATE FILE` file, produces a default rendered output file with the proper extension `.rendered.<extension>`.
+    /// NOTICE: Providing `<TEMPLATE FILE>` file, produces a default rendered output file with the proper extension `<TEMPLATE FILE>.rendered.<extension>`.
     ///
-    /// NOTICE: By NOT providing `TEMPLATE FILE`, the CLI will attempt to read the template data from STDIN, WITHOUT producing a default `.rendered.<extension>` file.
+    /// NOTICE: By NOT providing `<TEMPLATE FILE>`, the CLI will attempt to read the template data from STDIN, WITHOUT producing a default `.rendered.<extension>` file.
     #[clap(value_parser, value_name = "TEMPLATE FILE")]
     template_file: Option<PathBuf>,
 
