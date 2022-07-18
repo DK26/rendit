@@ -1,3 +1,4 @@
+use anyhow::Result;
 use bat::PrettyPrinter;
 use clap::Parser;
 use handlebars::{Handlebars, TemplateError};
@@ -172,7 +173,7 @@ fn pretty_print(content: &str, extension: Option<&str>) {
         .expect("Unable to pretty print.");
 }
 
-fn main() {
+fn main() -> Result<()> {
     // When to use the `Tera` engine:
     // `Used to Jinja2, Django templates, Liquid or Twig? You will feel right at home.`
     // Want to use Jinja2, Django templates, Liquid or Twig? Use Tera (complete compatibly not guaranteed - More engine support may be added in the future)
@@ -302,4 +303,6 @@ fn main() {
             // output_render(&result, rendered_output_file);
         }
     }
+
+    Ok(())
 }
