@@ -1,5 +1,5 @@
 [package]
-name = "render-template"
+name = "render_template"
 authors = ["David Krasnitsky <dikaveman@gmail.com>"]
 version = "0.1.0"
 edition = "2021"
