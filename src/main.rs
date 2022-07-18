@@ -30,9 +30,9 @@ enum Template {
 )]
 struct Cli {
     /// The template file path, requiring a `default.ctx.json` context file or template specific context file
-    /// containing the template name and ending with the `.ctx.json` extension.
+    /// containing the template name, ending with the `.ctx.json` extension.
     ///
-    /// e.g. for `my_template.html` specific context file should be named `my_template.ctx.json` located under the same directory.
+    /// e.g. for `my_template.html`, a specific context file name will be `my_template.ctx.json`, located under the same directory.
     ///
     /// NOTICE: Providing `<TEMPLATE FILE>` file, produces a default rendered output file with the proper extension `<TEMPLATE FILE>.rendered.<extension>`.
     ///
@@ -81,9 +81,6 @@ struct Cli {
     #[clap(short, long = "watch", value_name = "SECONDS", action)]
     watch_seconds: Option<u8>,
 }
-
-// TODO: STDIN support
-// TODO: By default render to stdout + Use `bat` for a Pretty Print (optional)
 
 /// Write `content` to file `path` using BufWriter
 fn write_to_file<P: AsRef<Path>>(content: &str, path: P) {
@@ -174,11 +171,10 @@ fn pretty_print(content: &str, extension: Option<&str>) {
 }
 
 fn main() -> Result<()> {
-    // When to use the `Tera` engine:
-    // `Used to Jinja2, Django templates, Liquid or Twig? You will feel right at home.`
-    // Want to use Jinja2, Django templates, Liquid or Twig? Use Tera (complete compatibly not guaranteed - More engine support may be added in the future)
-
     let args = Cli::parse();
+
+    // TODO: STDIN support
+    // TODO: By default render to stdout + Use `bat` for a Pretty Print (optional)
 
     if let Some(template_file) = args.template_file {
         // let template_extension = &*args

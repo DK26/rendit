@@ -18,13 +18,16 @@ Usage Here
 
 Parameters here
 
-## Template Examples
+## Template Engines
 
 <details>
 <summary>Tera</summary>
 
-- Supported Version: **v1.16.0**
+A good alternative choice if you are used to template engines such as `Jinja2`, `Django`, `Liquid` or `Twig`.  
+The `Tera` rendering engine is highly advanced, capable and secure rendering engine that follows the OWASP Top 10 guidelines to provide trust and security.
+
 - Guide: <https://tera.netlify.app/docs/#templates>  
+- Supported Version: **v1.16.0**
 
 ```html
 <HTML>
@@ -36,8 +39,10 @@ Parameters here
 <details>
   <summary>Handlebars</summary>
 
-- Supported Version: **v4.3.2**
+The most popular rendering engine that is shared among multiple programming languages. Somewhat more limited than other options.
+
 - Guide: <https://handlebarsjs.com/guide/>  
+- Supported Version: **v4.3.2**
   
 ```html
 <HTML>
@@ -48,8 +53,10 @@ Parameters here
 <details>
   <summary>Liquid</summary>
 
-- Supported Version: **v0.26.0**
+A highly advanced rendering engine, coming from the Ruby programming language.
+
 - Guide: <https://github.com/Shopify/liquid/wiki/Liquid-for-Designers>  
+- Supported Version: **v0.26.0**
 
 ```html
 <HTML>
