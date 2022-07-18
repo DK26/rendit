@@ -2,7 +2,7 @@
 
 A toy project for rendering HTML template files with multi-engine support.
 
-## Supported Templates
+## Supported Template Engines
 
 | Engine     | Version | Guide                                                         |  
 | ---------- | ------- | ------------------------------------------------------------- |
