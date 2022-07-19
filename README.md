@@ -1,6 +1,6 @@
 ![render-template](assets/logo.gif)
 
-A template-design aid CLI project for rendering HTML (and other) template files or piped input, supporting multiple rendering engines.
+A template-design aid CLI tool for rendering HTML (and other) template files or piped input, supporting multiple rendering engines.
 
 Can also be used for shell scripting.
 
