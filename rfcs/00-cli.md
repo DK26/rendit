@@ -2,7 +2,10 @@
 
 This document describes the logical flow of CLI features.
 
-<!--Flowcharts Guide: https://github.com/mermaid-js/mermaid-->
+<!--
+Flowcharts Guide: https://github.com/mermaid-js/mermaid
+Live Editor: https://mermaid.live
+-->
 ## Flowchart
 
 ```mermaid
