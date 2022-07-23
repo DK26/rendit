@@ -10,13 +10,22 @@ Live Editor: https://mermaid.live
 
 ```mermaid
 graph TD;
+    Z[Start]-->A;
     A{Template File Argument};
-    A--> |Yes| B[1];
-    A--> |No| F[Read STDIN];
+    A--> |Yes| B(Read File);
+    A--> |No| F(Read STDIN);
     F-->C;
+    B-->C;
     C{Context Argument};
-    C--> |Yes| E[Use Argument Context];
-    C--> |No| D[Use `default.ctx.json` for Context];
+    C--> |Yes| E(Use Argument Context);
+    C--> |No| D(Use `default.ctx.json` for Context);
+    E-->G;
+    D-->G;
+    G(Render Contents);
+    G-->H;
+    H{Template from File};
+    H-->|Yes|J(Output to `.rendered.FILE EXTENSION>`);
+    H-->|No|K(Print to STDOUT);
 ```  
 
 TBD
