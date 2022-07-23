@@ -8,8 +8,8 @@ This document describes the logical flow of CLI features.
 ```mermaid
 graph TD;
     A{Has Template File Argument?}-->B;
-    B--> |Yes| C[1]
-    B--> |No| D[2]
+    A--> |Yes| C[1]
+    A--> |No| D[2]
 ```  
 
 TBD
