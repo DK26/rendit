@@ -13,12 +13,15 @@ use std::{
 };
 use tera::{Context, Tera};
 
-enum Template {
-    Tera(String),
-    Handlebars(String),
-    Liquid(String),
-    Unknown(String, String),
-    NoEngine(String),
+type Contents = String;
+type EngineName = String;
+
+enum TemplateKind {
+    Tera(Contents),
+    Handlebars(Contents),
+    Liquid(Contents),
+    Unknown(EngineName, Contents),
+    NoEngine(Contents),
 }
 
 #[derive(Parser)]
@@ -95,7 +98,7 @@ fn write_to_file<P: AsRef<Path>>(content: &str, path: P) {
         .expect("Unable to write rendered HTML");
 }
 
-impl From<String> for Template {
+impl From<String> for TemplateKind {
     /// Inspect the String contents for a magic comment `<!--template engine_name-->`, and return the appropriate `Template` enum variation for rendering.
     fn from(contents: String) -> Self {
         let re = RegexBuilder::new(r#"^(?:\s+)?<!--template\s+(?P<engine>\w+)\s?-->"#)
@@ -119,13 +122,13 @@ impl From<String> for Template {
             log::debug!("Detected Engine: `{engine}`");
 
             match engine.as_str() {
-                "tera" => Template::Tera(contents),
-                "hbs" | "handlebars" => Template::Handlebars(contents),
-                "liq" | "liquid" => Template::Liquid(contents),
-                unknown_engine => Template::Unknown(unknown_engine.to_owned(), contents),
+                "tera" => TemplateKind::Tera(contents),
+                "hbs" | "handlebars" => TemplateKind::Handlebars(contents),
+                "liq" | "liquid" => TemplateKind::Liquid(contents),
+                unknown_engine => TemplateKind::Unknown(unknown_engine.to_owned(), contents),
             }
         } else {
-            Template::NoEngine(contents)
+            TemplateKind::NoEngine(contents)
         }
     }
 }
@@ -135,7 +138,7 @@ impl From<String> for Template {
 /// If no special extension is provided then the contents of the template are inspected for the magic comment `<!--TEMPLATE engine_name-->`.
 ///
 /// Engine Names: `tera`, `handlebars` or `hbs`, `liquid` or `liq`
-fn load_template_file<P: AsRef<Path>>(path: P) -> Template {
+fn load_template_file<P: AsRef<Path>>(path: P) -> TemplateKind {
     let template_contents = fs::read_to_string(&path).expect("Unable to load raw template.");
 
     // if let Some(stem) = path.as_ref().file_stem() {
@@ -147,9 +150,9 @@ fn load_template_file<P: AsRef<Path>>(path: P) -> Template {
         let file_extension = &*extension.to_string_lossy();
 
         match file_extension {
-            "tera" => return Template::Tera(template_contents),
-            "hbs" => return Template::Handlebars(template_contents),
-            "liq" => return Template::Liquid(template_contents),
+            "tera" => return TemplateKind::Tera(template_contents),
+            "hbs" => return TemplateKind::Handlebars(template_contents),
+            "liq" => return TemplateKind::Liquid(template_contents),
             _ => {} // ignore unknown extensions
         };
     }
@@ -170,13 +173,29 @@ fn pretty_print(content: &str, extension: Option<&str>) {
         .expect("Unable to pretty print.");
 }
 
+fn stdin_read() -> String {
+    let lines = std::io::stdin().lines();
+
+    lines
+        .map(|line| {
+            let l = line.expect("Failed to read stdin line");
+            l + "\n"
+        })
+        .collect()
+}
+
 fn main() -> Result<()> {
     let args = Cli::parse();
 
-    // TODO: STDIN support
     // TODO: By default render to stdout + Use `bat` for a Pretty Print (optional)
 
-    if let Some(template_file) = args.template_file {
+    if let Some(_template_file) = &args.template_file {
+    } else {
+        let template_contents = stdin_read();
+    }
+
+    // Checks if `<TEMPLATE FILE` was provided
+    if let Some(template_file) = &args.template_file {
         // let template_extension = &*args
         let template_extension = &*template_file
             .extension()
@@ -215,7 +234,7 @@ fn main() -> Result<()> {
         let template_contents = load_template_file(&template_file);
 
         let result = match template_contents {
-            Template::Tera(contents) => {
+            TemplateKind::Tera(contents) => {
                 let context =
                     Context::from_value(context).expect("Unable to create context from JSON.");
 
@@ -231,7 +250,7 @@ fn main() -> Result<()> {
                     }
                 }
             }
-            Template::Handlebars(contents) => {
+            TemplateKind::Handlebars(contents) => {
                 let handlebars = Handlebars::new();
                 let render = handlebars.render_template(&contents, &context);
                 match render {
@@ -248,7 +267,7 @@ fn main() -> Result<()> {
                     }
                 }
             }
-            Template::Liquid(contents) => {
+            TemplateKind::Liquid(contents) => {
                 let template = liquid::ParserBuilder::with_stdlib()
                     .build()
                     .expect("Unable to build Liquid parser.")
@@ -270,8 +289,8 @@ fn main() -> Result<()> {
                     .render(&globals)
                     .expect("Unable to render template.")
             }
-            Template::Unknown(engine, _) => panic!("Unknown template engine: `{engine}`"),
-            Template::NoEngine(raw) => raw,
+            TemplateKind::Unknown(engine, _) => panic!("Unknown template engine: `{engine}`"),
+            TemplateKind::NoEngine(raw) => raw,
         };
 
         // Cancelled: PrettyPrint -> Characters are not standard and cannot be redirected properly with pipes.. for now.
