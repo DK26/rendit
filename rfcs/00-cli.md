@@ -1,15 +1,15 @@
 # CLI
 
-This document describes the logical flow of CLI features.   
+This document describes the logical flow of CLI features.
 
+<!--Flowcharts Guide: https://github.com/mermaid-js/mermaid-->
 ## Flowchart
 
 ```mermaid
 graph TD;
-    A-->B;
-    A-->C;
-    B-->D;
-    C-->D;
+    A{Has Template File Argument?}-->B;
+    B--> |Yes| C[1]
+    B--> |No| D[2]
 ```  
 
 TBD
