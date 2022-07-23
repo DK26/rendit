@@ -23,13 +23,16 @@ graph TD;
     D-->G;
     G(Render Contents);
     G-->H;
-    H{Template File Argument};
-    H-->|Yes|J(Output to `FILE NAME.rendered.FILE EXTENSION`);
-    H-->|No|K(Print to STDOUT);
+    H{Output Argument};
+    H-->|No|L;
+    H-->|Yes|O(Output to file)
+    O-->X;
+    L{Template File Argument};
+    L-->|Yes|J(Output to `FILE NAME.rendered.FILE EXTENSION`);
+    L-->|No|K(Print to STDOUT);
     K-->X;
     J-->X;
     X[END]
 ```  
 
 TBD
-
