@@ -24,7 +24,7 @@ graph TD;
     G(Render Contents);
     G-->H;
     H{Template from File};
-    H-->|Yes|J(Output to `.rendered.FILE EXTENSION>`);
+    H-->|Yes|J(Output to `<FILE NAME>.rendered.<FILE EXTENSION>`);
     H-->|No|K(Print to STDOUT);
 ```  
 
