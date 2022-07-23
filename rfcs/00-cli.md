@@ -10,7 +10,7 @@ Live Editor: https://mermaid.live
 
 ```mermaid
 graph TD;
-    Z[Start]-->A;
+    Z[START]-->A;
     A{Template File Argument};
     A--> |Yes| B(Read File);
     A--> |No| F(Read STDIN);
@@ -23,9 +23,12 @@ graph TD;
     D-->G;
     G(Render Contents);
     G-->H;
-    H{Template from File};
+    H{Template File Argument};
     H-->|Yes|J(Output to `FILE NAME.rendered.FILE EXTENSION`);
     H-->|No|K(Print to STDOUT);
+    K-->X;
+    J-->X;
+    X[END]
 ```  
 
 TBD
