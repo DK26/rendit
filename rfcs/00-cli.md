@@ -10,7 +10,7 @@ graph TD;
     A{Template File Argument};
     A--> |Yes| B[1];
     A--> |No| F[Read STDIN];
-    C-->F;
+    F-->C;
     C{Context Argument};
     C--> |Yes| E[Use Argument Context];
     C--> |No| D[Use `default.ctx.json` for Context];
