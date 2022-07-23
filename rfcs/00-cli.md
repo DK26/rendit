@@ -7,9 +7,9 @@ This document describes the logical flow of CLI features.
 
 ```mermaid
 graph TD;
-    A{Has Template File Argument?}-->B;
-    A--> |Yes| C[1]
-    A--> |No| D[2]
+    A{Has Template File Argument?};
+    A--> |Yes| B[1]
+    A--> |No| C[2]
 ```  
 
 TBD
