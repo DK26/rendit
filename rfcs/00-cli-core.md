@@ -33,3 +33,17 @@ graph TD;
     J-->X;
     X(END)
 ```  
+
+## CLI States
+
+```mermaid
+stateDiagram
+    [*] --> LoadedTemplate
+    LoadedTemplate --> LoadedContext
+    [*] --> Failed
+    Failed --> [*]
+    LoadedTemplate --> Failed
+    LoadedContext --> RenderedTemplate
+    LoadedContext --> Failed
+    RenderedTemplate --> [*]
+```
