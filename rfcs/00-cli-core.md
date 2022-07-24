@@ -11,27 +11,22 @@ Live Editor: https://mermaid.live
 
 ```mermaid
 graph TD;
-    Z(START)-->A;
-    A{Template File Argument};
+    Z(START)-->A{Template File Argument};
     A--> |Yes| B(Read File);
     A--> |No| F(Read STDIN);
     F-->Q;
     B-->Q;
-    Q[Template Data]-->C;
-    C{Context Argument};
+    Q[Template Data]-->C{Context Argument};
     C--> |Yes| E(Load Context Argument);
     C--> |No| D(Load `default.ctx.json` Context);
     E-->W;
     D-->W;
-    W[Context Data]-->G;
-    G(Render Template Data with Context Data);
+    W[Context Data]-->G(Render Template Data with Context Data);
     G-->R;
-    R[Render Result]-->|Output|H;
-    H{Output Argument};
-    H-->|No|L;
+    R[Render Result]-->|Output|H{Output Argument};
+    H-->|No|L{Template File Argument};
     H-->|Yes|O(Output to file)
     O-->X;
-    L{Template File Argument};
     L-->|Yes|J(Output to `FILE NAME.rendered.FILE EXTENSION`);
     L-->|No|K(Print to STDOUT);
     K-->X;
