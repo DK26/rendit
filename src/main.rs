@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use bat::PrettyPrinter;
 use clap::Parser;
 use handlebars::{Handlebars, TemplateError};
@@ -11,7 +11,7 @@ use std::{
     io::{BufWriter, Write},
     path::{Path, PathBuf},
 };
-use tera::{Context, Tera};
+use tera::Tera;
 
 type Contents = String;
 type EngineName = String;
@@ -184,140 +184,176 @@ fn stdin_read() -> String {
         .collect()
 }
 
+enum InputKind {
+    Stdin,
+    File,
+}
+
+struct TemplateData<'args> {
+    contents: String,
+    input_kind: InputKind,
+    file_path: Option<&'args PathBuf>,
+}
+
+struct ContextData<'args> {
+    context: serde_json::Value,
+    file_path: Option<&'args PathBuf>,
+}
+
 fn main() -> Result<()> {
     let args = Cli::parse();
 
-    // TODO: By default render to stdout + Use `bat` for a Pretty Print (optional)
-
-    if let Some(_template_file) = &args.template_file {
+    let template_data = if let Some(template_file) = &args.template_file {
+        TemplateData {
+            contents: fs::read_to_string(&template_file)
+                .with_context(|| "Unable to load template file.")?,
+            input_kind: InputKind::File,
+            file_path: Some(template_file),
+        }
     } else {
-        let template_contents = stdin_read();
-    }
+        TemplateData {
+            contents: stdin_read(),
+            input_kind: InputKind::Stdin,
+            file_path: None,
+        }
+    };
+
+    let context_data = if let Some(context_file) = &args.context_file {
+        ContextData {
+            context: todo!(),
+            file_path: Some(context_file),
+        }
+    } else {
+        ContextData {
+            context: todo!(),
+            file_path: None,
+        }
+    };
 
     // Checks if `<TEMPLATE FILE` was provided
-    if let Some(template_file) = &args.template_file {
-        // let template_extension = &*args
-        let template_extension = &*template_file
-            .extension()
-            .expect("Template has no file extension.")
-            .to_string_lossy();
+    // if let Some(template_file) = &args.template_file {
+    //     // let template_extension = &*args
+    //     let template_extension = &*template_file
+    //         .extension()
+    //         .expect("Template has no file extension.")
+    //         .to_string_lossy();
 
-        let rendered_template_extension = "rendered.".to_string() + template_extension;
+    //     let rendered_template_extension = "rendered.".to_string() + template_extension;
 
-        let template_context_file = template_file.with_extension("ctx.json");
+    //     let template_context_file = template_file.with_extension("ctx.json");
 
-        let context_json =
-            fs::read_to_string(&template_context_file).expect("Unable to load template context.");
+    //     let context_json =
+    //         fs::read_to_string(&template_context_file).expect("Unable to load template context.");
 
-        let context: serde_json::Value =
-            serde_json::from_str(&context_json).expect("Unable to parse context JSON.");
+    //     let context: serde_json::Value =
+    //         serde_json::from_str(&context_json).expect("Unable to parse context JSON.");
 
-        let rendered_output_file = template_file.with_extension(&rendered_template_extension);
+    //     let rendered_output_file = template_file.with_extension(&rendered_template_extension);
 
-        let log_level = match args.verbose {
-            1 => LevelFilter::Info,
-            2 => LevelFilter::Debug,
-            _ => LevelFilter::Error,
-        };
+    //     let log_level = match args.verbose {
+    //         1 => LevelFilter::Info,
+    //         2 => LevelFilter::Debug,
+    //         _ => LevelFilter::Error,
+    //     };
 
-        TermLogger::init(
-            log_level,
-            simplelog::Config::default(),
-            simplelog::TerminalMode::Mixed,
-            simplelog::ColorChoice::Auto,
-        )
-        .expect("Unable to initialize logger.");
+    //     TermLogger::init(
+    //         log_level,
+    //         simplelog::Config::default(),
+    //         simplelog::TerminalMode::Mixed,
+    //         simplelog::ColorChoice::Auto,
+    //     )
+    //     .expect("Unable to initialize logger.");
 
-        log::info!("Rendering File: {}", template_file.to_string_lossy());
-        log::info!("Context File: {}", template_context_file.to_string_lossy());
+    //     log::info!("Rendering File: {}", template_file.to_string_lossy());
+    //     log::info!("Context File: {}", template_context_file.to_string_lossy());
 
-        let template_contents = load_template_file(&template_file);
+    //     let template_contents = load_template_file(&template_file);
 
-        let result = match template_contents {
-            TemplateKind::Tera(contents) => {
-                let context =
-                    Context::from_value(context).expect("Unable to create context from JSON.");
+    //     let result = match template_contents {
+    //         TemplateKind::Tera(contents) => {
+    //             let context =
+    //                 Context::from_value(context).expect("Unable to create context from JSON.");
 
-                match Tera::one_off(&contents, &context, true) {
-                    Ok(rendered) => rendered,
-                    Err(e) => {
-                        if let Some(source) = e.source() {
-                            log::error!("{source}");
-                            // eprintln!("{source}");
-                        }
+    //             match Tera::one_off(&contents, &context, true) {
+    //                 Ok(rendered) => rendered,
+    //                 Err(e) => {
+    //                     if let Some(source) = e.source() {
+    //                         log::error!("{source}");
+    //                         // eprintln!("{source}");
+    //                     }
 
-                        panic!("Unable to render template.");
-                    }
-                }
-            }
-            TemplateKind::Handlebars(contents) => {
-                let handlebars = Handlebars::new();
-                let render = handlebars.render_template(&contents, &context);
-                match render {
-                    Ok(contents) => contents,
-                    Err(e) => {
-                        if let Some(source) = e.source() {
-                            if let Some(template_error) = source.downcast_ref::<TemplateError>() {
-                                let template_error_string = format!("{template_error}");
-                                pretty_print(&template_error_string, Some(template_extension));
-                                // eprintln!("{template_error}");
-                            }
-                        }
-                        panic!("Unable to render template.");
-                    }
-                }
-            }
-            TemplateKind::Liquid(contents) => {
-                let template = liquid::ParserBuilder::with_stdlib()
-                    .build()
-                    .expect("Unable to build Liquid parser.")
-                    .parse(&contents);
+    //                     panic!("Unable to render template.");
+    //                 }
+    //             }
+    //         }
+    //         TemplateKind::Handlebars(contents) => {
+    //             let handlebars = Handlebars::new();
+    //             let render = handlebars.render_template(&contents, &context);
+    //             match render {
+    //                 Ok(contents) => contents,
+    //                 Err(e) => {
+    //                     if let Some(source) = e.source() {
+    //                         if let Some(template_error) = source.downcast_ref::<TemplateError>() {
+    //                             let template_error_string = format!("{template_error}");
+    //                             pretty_print(&template_error_string, Some(template_extension));
+    //                             // eprintln!("{template_error}");
+    //                         }
+    //                     }
+    //                     panic!("Unable to render template.");
+    //                 }
+    //             }
+    //         }
+    //         TemplateKind::Liquid(contents) => {
+    //             let template = liquid::ParserBuilder::with_stdlib()
+    //                 .build()
+    //                 .expect("Unable to build Liquid parser.")
+    //                 .parse(&contents);
 
-                let template = match template {
-                    Ok(t) => t,
-                    Err(e) => {
-                        let template_error_string = format!("{e}");
-                        pretty_print(&template_error_string, Some(template_extension));
-                        // eprintln!("{e}");
-                        panic!("Unable to parse template.");
-                    }
-                };
+    //             let template = match template {
+    //                 Ok(t) => t,
+    //                 Err(e) => {
+    //                     let template_error_string = format!("{e}");
+    //                     pretty_print(&template_error_string, Some(template_extension));
+    //                     // eprintln!("{e}");
+    //                     panic!("Unable to parse template.");
+    //                 }
+    //             };
 
-                let globals = liquid::object!(&context);
+    //             let globals = liquid::object!(&context);
 
-                template
-                    .render(&globals)
-                    .expect("Unable to render template.")
-            }
-            TemplateKind::Unknown(engine, _) => panic!("Unknown template engine: `{engine}`"),
-            TemplateKind::NoEngine(raw) => raw,
-        };
+    //             template
+    //                 .render(&globals)
+    //                 .expect("Unable to render template.")
+    //         }
+    //         TemplateKind::Unknown(engine, _) => panic!("Unknown template engine: `{engine}`"),
+    //         TemplateKind::NoEngine(raw) => raw,
+    //     };
 
-        // Cancelled: PrettyPrint -> Characters are not standard and cannot be redirected properly with pipes.. for now.
-        // PrettyPrinter::new()
-        //     .language("html") // Default: auto-detect
-        //     .line_numbers(true)
-        //     .grid(true)
-        //     .header(true)
-        //     .input(bat::Input::from_bytes(result.as_bytes()))
-        //     .print()
-        //     .unwrap();
-        let pretty_print_preconditions = [args.pretty, args.verbose > 0];
+    //     // Cancelled: PrettyPrint -> Characters are not standard and cannot be redirected properly with pipes.. for now.
+    //     // PrettyPrinter::new()
+    //     //     .language("html") // Default: auto-detect
+    //     //     .line_numbers(true)
+    //     //     .grid(true)
+    //     //     .header(true)
+    //     //     .input(bat::Input::from_bytes(result.as_bytes()))
+    //     //     .print()
+    //     //     .unwrap();
+    //     let pretty_print_preconditions = [args.pretty, args.verbose > 0];
 
-        if pretty_print_preconditions.iter().any(|&c| c) {
-            pretty_print(&result, Some(template_extension))
-        } else {
-            println!("{result}");
-        }
+    //     if pretty_print_preconditions.iter().any(|&c| c) {
+    //         pretty_print(&result, Some(template_extension))
+    //     } else {
+    //         println!("{result}");
+    //     }
 
-        // TODO: Output to file only if output argument is given
-        if let Some(output_path) = args.output_file {
-            println!("Activated Output Switch");
-            log::info!("Rendered Output File: {}", output_path.to_string_lossy());
-            write_to_file(&result, output_path);
-            // output_render(&result, rendered_output_file);
-        }
-    }
+    //     // TODO: Output to file only if output argument is given
+    //     if let Some(output_path) = args.output_file {
+    //         println!("Activated Output Switch");
+    //         log::info!("Rendered Output File: {}", output_path.to_string_lossy());
+    //         write_to_file(&result, output_path);
+    //         // output_render(&result, rendered_output_file);
+    //     }
+    // }
 
     Ok(())
 }
