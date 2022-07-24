@@ -7,10 +7,11 @@ Live Editor: https://mermaid.live
 
 ## Graphs
 
+This document describes the core logical flow of the CLI, without getting into special options.
+
+
 <details>
 <summary>Core Flow</summary>
-
-This document describes the core logical flow of the CLI, without getting into special options.
 
 ```mermaid
 graph TD;
