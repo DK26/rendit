@@ -1,13 +1,16 @@
 # CLI
 
-This document describes the core logical flow of the CLI, without getting into special options.
-
-## Core Flow
-
 <!--
 Flowcharts Guide: https://github.com/mermaid-js/mermaid
 Live Editor: https://mermaid.live
 -->
+
+## Graphs
+
+<details>
+<summary>Core Flow</summary>
+
+This document describes the core logical flow of the CLI, without getting into special options.
 
 ```mermaid
 graph TD;
@@ -34,7 +37,10 @@ graph TD;
     X(END)
 ```  
 
-## CLI States
+</details>
+
+<details>
+<summary>CLI States</summary>
 
 ```mermaid
 stateDiagram
@@ -47,3 +53,5 @@ stateDiagram
     LoadedContext --> Failed
     RenderedTemplate --> [*]
 ```
+
+</details>
