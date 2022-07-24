@@ -206,7 +206,7 @@ fn main() -> Result<()> {
     let template_data = if let Some(template_file) = &args.template_file {
         TemplateData {
             contents: fs::read_to_string(&template_file)
-                .with_context(|| "Unable to load template file.")?,
+                .context("Unable to load template file.")?,
             input_kind: InputKind::File,
             file_path: Some(template_file),
         }
@@ -219,15 +219,23 @@ fn main() -> Result<()> {
     };
 
     let context_data = if let Some(context_file) = &args.context_file {
+        let contents = fs::read_to_string(&context_file).context("Unable to load context file.")?;
+
         ContextData {
-            context: todo!(),
+            context: contents.into(),
             file_path: Some(context_file),
         }
     } else {
-        ContextData {
-            context: todo!(),
-            file_path: None,
-        }
+        if let Some(template_file) = &args.template_file {
+            let template_context_file = template_file.with_extension("ctx.json");
+            if template_context_file.exists() {}
+            todo!()
+        } else {
+            let default_context_file = PathBuf::from("default.ctx.json");
+            if default_context_file.exists() {}
+            todo!()
+        };
+        todo!()
     };
 
     // Checks if `<TEMPLATE FILE` was provided
