@@ -16,7 +16,7 @@ use tera::Tera;
 type Contents = String;
 type EngineName = String;
 
-enum TemplateKind {
+enum Template {
     Tera(Contents),
     Handlebars(Contents),
     Liquid(Contents),
@@ -98,7 +98,7 @@ fn write_to_file<P: AsRef<Path>>(content: &str, path: P) {
         .expect("Unable to write rendered HTML");
 }
 
-impl From<String> for TemplateKind {
+impl From<String> for Template {
     /// Inspect the String contents for a magic comment `<!--template engine_name-->`, and return the appropriate `Template` enum variation for rendering.
     fn from(contents: String) -> Self {
         let re = RegexBuilder::new(r#"^(?:\s+)?<!--template\s+(?P<engine>\w+)\s?-->"#)
@@ -122,43 +122,41 @@ impl From<String> for TemplateKind {
             log::debug!("Detected Engine: `{engine}`");
 
             match engine.as_str() {
-                "tera" => TemplateKind::Tera(contents),
-                "hbs" | "handlebars" => TemplateKind::Handlebars(contents),
-                "liq" | "liquid" => TemplateKind::Liquid(contents),
-                unknown_engine => TemplateKind::Unknown(unknown_engine.to_owned(), contents),
+                "tera" => Template::Tera(contents),
+                "hbs" | "handlebars" => Template::Handlebars(contents),
+                "liq" | "liquid" => Template::Liquid(contents),
+                unknown_engine => Template::Unknown(unknown_engine.to_owned(), contents),
             }
         } else {
-            TemplateKind::NoEngine(contents)
+            Template::NoEngine(contents)
         }
     }
 }
 
-/// Loads a template file into a Template enum type.
-/// Decides on the engine type by first inspecting the file extension (`.tera`, `.hbs` or `.liq`).
-/// If no special extension is provided then the contents of the template are inspected for the magic comment `<!--TEMPLATE engine_name-->`.
-///
-/// Engine Names: `tera`, `handlebars` or `hbs`, `liquid` or `liq`
-fn load_template_file<P: AsRef<Path>>(path: P) -> TemplateKind {
-    let template_contents = fs::read_to_string(&path).expect("Unable to load raw template.");
+impl<'arg> From<TemplateData<'arg>> for Template {
+    /// Loads a template file into a Template enum type.
+    /// Decides on the engine type by first inspecting the file extension (`.tera`, `.hbs` or `.liq`).
+    /// If no special extension is provided then the contents of the template are inspected for the magic comment `<!--TEMPLATE engine_name-->`.
+    ///
+    /// Engine Names: `tera`, `handlebars` or `hbs`, `liquid` or `liq`
+    fn from(td: TemplateData) -> Self {
+        // Checking for template file extension to determine the template engine.
+        // Notice the early returns.
+        if let Some(template_file) = td.file_path {
+            if let Some(extension) = template_file.extension() {
+                let file_extension = &*extension.to_string_lossy();
 
-    // if let Some(stem) = path.as_ref().file_stem() {
-    //     let stem = &*stem.to_string_lossy();
-    //     println!("Stem: {stem}");
-    // }
-
-    if let Some(extension) = path.as_ref().extension() {
-        let file_extension = &*extension.to_string_lossy();
-
-        match file_extension {
-            "tera" => return TemplateKind::Tera(template_contents),
-            "hbs" => return TemplateKind::Handlebars(template_contents),
-            "liq" => return TemplateKind::Liquid(template_contents),
-            _ => {} // ignore unknown extensions
-        };
+                match file_extension {
+                    "tera" => return Template::Tera(td.contents),
+                    "hbs" => return Template::Handlebars(td.contents),
+                    "liq" => return Template::Liquid(td.contents),
+                    _ => {} // ignore unknown extensions
+                };
+            }
+        }
+        // Scan template contents for the magic comment to return the proper Template kind.
+        td.contents.into()
     }
-
-    // Scan template contents for the magic comment to return the proper Template kind.
-    template_contents.into()
 }
 
 fn pretty_print(content: &str, extension: Option<&str>) {
@@ -197,6 +195,72 @@ struct TemplateData<'args> {
 
 struct ContextData {
     context: serde_json::Value,
+}
+
+type RenderedTemplate = String;
+
+fn render(template_data: TemplateData, context_data: ContextData) -> Result<RenderedTemplate> {
+    let template = Template::from(template_data);
+    let result = match template {
+        Template::Tera(contents) => {
+            let context =
+                Context::from_value(context).expect("Unable to create context from JSON.");
+
+            match Tera::one_off(&contents, &context, true) {
+                Ok(rendered) => rendered,
+                Err(e) => {
+                    if let Some(source) = e.source() {
+                        log::error!("{source}");
+                        // eprintln!("{source}");
+                    }
+
+                    panic!("Unable to render template.");
+                }
+            }
+        }
+        Template::Handlebars(contents) => {
+            let handlebars = Handlebars::new();
+            let render = handlebars.render_template(&contents, &context);
+            match render {
+                Ok(contents) => contents,
+                Err(e) => {
+                    if let Some(source) = e.source() {
+                        if let Some(template_error) = source.downcast_ref::<TemplateError>() {
+                            let template_error_string = format!("{template_error}");
+                            pretty_print(&template_error_string, Some(template_extension));
+                            // eprintln!("{template_error}");
+                        }
+                    }
+                    panic!("Unable to render template.");
+                }
+            }
+        }
+        Template::Liquid(contents) => {
+            let template = liquid::ParserBuilder::with_stdlib()
+                .build()
+                .expect("Unable to build Liquid parser.")
+                .parse(&contents);
+
+            let template = match template {
+                Ok(t) => t,
+                Err(e) => {
+                    let template_error_string = format!("{e}");
+                    pretty_print(&template_error_string, Some(template_extension));
+                    // eprintln!("{e}");
+                    panic!("Unable to parse template.");
+                }
+            };
+
+            let globals = liquid::object!(&context);
+
+            template
+                .render(&globals)
+                .expect("Unable to render template.")
+        }
+        Template::Unknown(engine, _) => panic!("Unknown template engine: `{engine}`"),
+        Template::NoEngine(raw) => raw,
+    };
+    Ok(result)
 }
 
 fn main() -> Result<()> {
