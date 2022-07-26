@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use bat::PrettyPrinter;
 use clap::Parser;
 use handlebars::{Handlebars, TemplateError};
@@ -203,8 +203,8 @@ fn render(template_data: TemplateData, context_data: ContextData) -> Result<Rend
     let template = Template::from(template_data);
     let result = match template {
         Template::Tera(contents) => {
-            let context =
-                Context::from_value(context).expect("Unable to create context from JSON.");
+            let context = tera::Context::from_value(context_data.context)
+                .context("Unable to create context from JSON.")?;
 
             match Tera::one_off(&contents, &context, true) {
                 Ok(rendered) => rendered,
@@ -213,14 +213,13 @@ fn render(template_data: TemplateData, context_data: ContextData) -> Result<Rend
                         log::error!("{source}");
                         // eprintln!("{source}");
                     }
-
-                    panic!("Unable to render template.");
+                    return Err(anyhow::Error::new(e).context("Unable to render template."));
                 }
             }
         }
         Template::Handlebars(contents) => {
             let handlebars = Handlebars::new();
-            let render = handlebars.render_template(&contents, &context);
+            let render = handlebars.render_template(&contents, &context_data.context);
             match render {
                 Ok(contents) => contents,
                 Err(e) => {
@@ -231,14 +230,14 @@ fn render(template_data: TemplateData, context_data: ContextData) -> Result<Rend
                             // eprintln!("{template_error}");
                         }
                     }
-                    panic!("Unable to render template.");
+                    return Err(anyhow::Error::new(e).context("Unable to render template."));
                 }
             }
         }
         Template::Liquid(contents) => {
             let template = liquid::ParserBuilder::with_stdlib()
                 .build()
-                .expect("Unable to build Liquid parser.")
+                .context("Unable to build Liquid parser.")?
                 .parse(&contents);
 
             let template = match template {
@@ -247,17 +246,18 @@ fn render(template_data: TemplateData, context_data: ContextData) -> Result<Rend
                     let template_error_string = format!("{e}");
                     pretty_print(&template_error_string, Some(template_extension));
                     // eprintln!("{e}");
-                    panic!("Unable to parse template.");
+                    return Err(anyhow::Error::new(e).context("Unable to parse template."));
                 }
             };
 
-            let globals = liquid::object!(&context);
+            let globals = liquid::object!(&context_data.context);
 
             template
                 .render(&globals)
-                .expect("Unable to render template.")
+                .context("Unable to render template.")?
         }
-        Template::Unknown(engine, _) => panic!("Unknown template engine: `{engine}`"),
+        // Template::Unknown(engine, _) => panic!("Unknown template engine: `{engine}`"),
+        Template::Unknown(engine, _) => return Err(anyhow!("Unknown template engine: `{engine}`")),
         Template::NoEngine(raw) => raw,
     };
     Ok(result)
