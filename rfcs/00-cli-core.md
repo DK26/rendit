@@ -68,9 +68,9 @@ graph TD;
     I(Render Template with Context);
     I --> M;
     M[Render Result];
-    M --> |Output| K
-    P --> |Yes| X
-    P --> |No| U
+    M --> |Output| K;
+    P --> |Yes| X;
+    P --> |No| U;
     J --> X;
     X(END)
 ```  
