@@ -211,7 +211,8 @@ struct ContextData {
     context: serde_json::Value,
 }
 
-type RenderedTemplate = String;
+// type RenderedTemplate = String;
+struct RenderedTemplate(String);
 
 fn render(template_data: TemplateData, context_data: ContextData) -> Result<RenderedTemplate> {
     let default_language = "html";
@@ -284,13 +285,13 @@ fn render(template_data: TemplateData, context_data: ContextData) -> Result<Rend
         Template::Unknown(engine, _) => return Err(anyhow!("Unknown template engine: `{engine}`")),
         Template::NoEngine(raw) => raw,
     };
-    Ok(result)
+    Ok(RenderedTemplate(result))
 }
 
 fn main() -> Result<()> {
     let args = Cli::parse();
 
-    let _template_data = if let Some(template_file) = &args.template_file {
+    let template_data = if let Some(template_file) = &args.template_file {
         TemplateData {
             contents: fs::read_to_string(&template_file)
                 .context("Unable to load template file.")?,
@@ -305,7 +306,7 @@ fn main() -> Result<()> {
         }
     };
 
-    let _context_data = {
+    let context_data = {
         let context_file = if let Some(context_file) = &args.context_file {
             context_file.to_owned()
         } else if let Some(template_file) = &args.template_file {
@@ -329,6 +330,10 @@ fn main() -> Result<()> {
             context: contents.into(),
         }
     };
+
+    let _rendered_template = render(template_data, context_data)?;
+
+    if let Some(output_arg) = args.output_file {};
 
     // Checks if `<TEMPLATE FILE` was provided
     // if let Some(template_file) = &args.template_file {
