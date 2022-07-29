@@ -309,7 +309,12 @@ fn main() -> Result<()> {
         let context_file = if let Some(context_file) = &args.context_file {
             context_file.to_owned()
         } else if let Some(template_file) = &args.template_file {
-            template_file.with_extension("ctx.json")
+            let ctx_path = template_file.with_extension("ctx.json");
+            if ctx_path.exists() {
+                ctx_path
+            } else {
+                PathBuf::from("default.ctx.json")
+            }
         } else {
             PathBuf::from("default.ctx.json")
         };
