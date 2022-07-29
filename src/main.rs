@@ -6,6 +6,7 @@ use log::LevelFilter;
 use regex::RegexBuilder;
 use simplelog::TermLogger;
 use std::{
+    borrow::Cow,
     error::Error,
     fs::{self, OpenOptions},
     io::{BufWriter, Write},
@@ -86,16 +87,18 @@ struct Cli {
 }
 
 /// Write `content` to file `path` using BufWriter
-fn write_to_file<P: AsRef<Path>>(content: &str, path: P) {
+fn write_to_file<P: AsRef<Path>>(content: &str, path: P) -> Result<()> {
     let file = OpenOptions::new()
         .create(true)
         .write(true)
         .open(path)
-        .expect("Unable to create file");
+        .context("Unable to create file")?;
 
     let mut bw = BufWriter::new(file);
     bw.write_all(content.as_bytes())
-        .expect("Unable to write rendered HTML");
+        .context("Unable to write rendered HTML")?;
+
+    Ok(())
 }
 
 impl From<String> for Template {
@@ -159,27 +162,38 @@ impl<'arg> From<TemplateData<'arg>> for Template {
     }
 }
 
-fn pretty_print(content: &str, extension: Option<&str>) {
+fn pretty_print(content: &str, language: &str) -> Result<()> {
     let bytes_content = content.as_bytes();
+
     PrettyPrinter::new()
-        .language(extension.unwrap_or("html")) // Default: auto-detect
+        .language(language) // Default: auto-detect
         .line_numbers(false)
         .grid(true)
         .header(true)
         .input(bat::Input::from_bytes(bytes_content))
         .print()
-        .expect("Unable to pretty print.");
+        .context("Unable to pretty print.")?;
+
+    Ok(())
 }
 
-fn stdin_read() -> String {
+fn stdin_read() -> Result<String> {
     let lines = std::io::stdin().lines();
+    let mut result = String::new();
+    for line in lines {
+        let l = line.context("Failed to read STDIN line")?;
+        result.push_str(&l);
+        result.push('\n');
+    }
 
-    lines
-        .map(|line| {
-            let l = line.expect("Failed to read stdin line");
-            l + "\n"
-        })
-        .collect()
+    // let result = lines
+    //     .map(|line| {
+    //         let l = line.expect("Failed to read stdin line");
+    //         l + "\n"
+    //     })
+    //     .collect();
+
+    Ok(result)
 }
 
 enum InputKind {
@@ -200,6 +214,16 @@ struct ContextData {
 type RenderedTemplate = String;
 
 fn render(template_data: TemplateData, context_data: ContextData) -> Result<RenderedTemplate> {
+    let default_language = "html";
+
+    let template_language = &*match template_data.file_path {
+        Some(p) => match p.extension() {
+            Some(ext) => ext.to_string_lossy(),
+            None => Cow::Borrowed(default_language),
+        },
+        None => Cow::Borrowed(default_language),
+    };
+
     let template = Template::from(template_data);
     let result = match template {
         Template::Tera(contents) => {
@@ -226,7 +250,7 @@ fn render(template_data: TemplateData, context_data: ContextData) -> Result<Rend
                     if let Some(source) = e.source() {
                         if let Some(template_error) = source.downcast_ref::<TemplateError>() {
                             let template_error_string = format!("{template_error}");
-                            pretty_print(&template_error_string, Some(template_extension));
+                            pretty_print(&template_error_string, template_language)?;
                             // eprintln!("{template_error}");
                         }
                     }
@@ -244,7 +268,7 @@ fn render(template_data: TemplateData, context_data: ContextData) -> Result<Rend
                 Ok(t) => t,
                 Err(e) => {
                     let template_error_string = format!("{e}");
-                    pretty_print(&template_error_string, Some(template_extension));
+                    pretty_print(&template_error_string, template_language)?;
                     // eprintln!("{e}");
                     return Err(anyhow::Error::new(e).context("Unable to parse template."));
                 }
@@ -275,7 +299,7 @@ fn main() -> Result<()> {
         }
     } else {
         TemplateData {
-            contents: stdin_read(),
+            contents: stdin_read()?,
             input_kind: InputKind::Stdin,
             file_path: None,
         }
