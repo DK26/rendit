@@ -31,8 +31,8 @@ graph TD;
     T --> |Yes| YT;
     T --> |No| DT;
     YT{`FILE NAME.ctx.json` File Exists};
-    YT --> |Yes| Y
-    YT --> |No| X
+    YT --> |Yes| Y;
+    YT --> |No| DT;
     Y(Load Context `FILE NAME.ctx.json`);
     Y --> W;
     DE{Context Argument File Exists};
@@ -49,7 +49,7 @@ graph TD;
     W --> G;
     G(Render Template with Context);
     G --> R;
-    R[Render Result];
+    R[Rendered Result];
     R --> |Output| H;
     H{Has Output Argument};
     H --> |No| L;
@@ -67,12 +67,12 @@ graph TD;
     U --> I;
     I(Render Template with Context);
     I --> M;
-    M[Render Result];
+    M[Rendered Result];
     M --> |Output| K;
     P --> |Yes| X;
     P --> |No| U;
     J --> X;
-    X(END)
+    X(END);
 ```  
 
 ---
