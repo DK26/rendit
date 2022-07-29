@@ -22,7 +22,7 @@ graph TD;
     F(Read STDIN);
     F --> TSC;
     B --> TSC;
-    TSC{Read Successfully};
+    TSC{Succeeded};
     TSC ==> |Yes| Q;
     TSC .-> |No| X;
     Q[Template Data];
@@ -42,13 +42,16 @@ graph TD;
     D(Load Context `default.ctx.json`);
     E --> SC;
     D --> SC;
-    SC{Read Successfully};
+    SC{Succeeded};
     SC ==> |Yes| W;
     SC .-> |No| X;
     W[Context Data];
     W --> G;
     G(Render Template with Context);
-    G --> R;
+    G --> GSC;
+    GSC{Succeeded}
+    GSC ==> |Yes| R;
+    GSC .-> |No| X;
     R[Rendered Template];
     R --> |Output| H;
     H{Has Output Argument};
@@ -74,19 +77,3 @@ graph TD;
     J .-> X;
     X(END);
 ```  
-
----
-
-### CLI States
-
-```mermaid
-stateDiagram
-    [*] --> LoadedTemplate
-    LoadedTemplate --> LoadedContext
-    [*] --> Failed
-    Failed --> [*]
-    LoadedTemplate --> Failed
-    LoadedContext --> RenderedTemplate
-    LoadedContext --> Failed
-    RenderedTemplate --> [*]
-```
