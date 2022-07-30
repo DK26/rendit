@@ -17,7 +17,7 @@ use tera::Tera;
 type Contents = String;
 type EngineName = String;
 
-const DEFAULT_CONTEXT_FILE: &'static str = "default.ctx.json";
+const DEFAULT_CONTEXT_FILE: &str = "default.ctx.json";
 
 enum Template {
     Tera(Contents),
