@@ -17,6 +17,8 @@ use tera::Tera;
 type Contents = String;
 type EngineName = String;
 
+const DEFAULT_CONTEXT_FILE: &'static str = "default.ctx.json";
+
 enum Template {
     Tera(Contents),
     Handlebars(Contents),
@@ -92,11 +94,11 @@ fn write_to_file<P: AsRef<Path>>(content: &str, path: P) -> Result<()> {
         .create(true)
         .write(true)
         .open(path)
-        .context("Unable to create file")?;
+        .context("Unable to create a file")?;
 
     let mut bw = BufWriter::new(file);
     bw.write_all(content.as_bytes())
-        .context("Unable to write rendered HTML")?;
+        .context("Unable to write rendered output to file")?;
 
     Ok(())
 }
@@ -314,10 +316,10 @@ fn main() -> Result<()> {
             if ctx_path.exists() {
                 ctx_path
             } else {
-                PathBuf::from("default.ctx.json")
+                PathBuf::from(DEFAULT_CONTEXT_FILE)
             }
         } else {
-            PathBuf::from("default.ctx.json")
+            PathBuf::from(DEFAULT_CONTEXT_FILE)
         };
 
         let contents = fs::read_to_string(&context_file).with_context(|| {
@@ -331,9 +333,30 @@ fn main() -> Result<()> {
         }
     };
 
-    let _rendered_template = render(template_data, context_data)?;
+    let rendered_template = render(template_data, context_data)?;
 
-    if let Some(output_arg) = args.output_file {};
+    if let Some(output_arg) = args.output_file {
+        write_to_file(&rendered_template.0, output_arg)?;
+    } else if let Some(template_file) = args.template_file {
+        let mut extension = String::from("rendered");
+
+        if let Some(ext) = template_file.extension() {
+            extension.push('.');
+            extension.push_str(&*ext.to_string_lossy());
+        }
+
+        let mut output_path = template_file.clone();
+        output_path.set_extension(extension);
+        write_to_file(&rendered_template.0, output_path)?;
+    } else {
+        // let pretty_print_preconditions = [args.pretty, args.verbose > 0];
+        //     if pretty_print_preconditions.iter().any(|&c| c) {
+        //         pretty_print(&result, Some(template_extension))
+        //     } else {
+        //         println!("{result}");
+        //     }
+        println!("{}", rendered_template.0);
+    }
 
     // Checks if `<TEMPLATE FILE` was provided
     // if let Some(template_file) = &args.template_file {
