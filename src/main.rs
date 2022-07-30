@@ -211,6 +211,7 @@ struct TemplateData<'args> {
 
 struct ContextData {
     context: serde_json::Value,
+    file_path: PathBuf,
 }
 
 // type RenderedTemplate = String;
@@ -231,7 +232,7 @@ fn render(template_data: TemplateData, context_data: ContextData) -> Result<Rend
     let result = match template {
         Template::Tera(contents) => {
             let context = tera::Context::from_value(context_data.context)
-                .context("Unable to create context from JSON.")?;
+                .context("Tera rejected Context object")?;
 
             match Tera::one_off(&contents, &context, true) {
                 Ok(rendered) => rendered,
@@ -329,7 +330,14 @@ fn main() -> Result<()> {
             )
         })?;
         ContextData {
-            context: contents.into(),
+            // context: contents.into(),
+            context: serde_json::from_str(&contents).with_context(|| {
+                format!(
+                    "Unable to parse context from file '{}'",
+                    context_file.to_string_lossy()
+                )
+            })?,
+            file_path: context_file,
         }
     };
 
