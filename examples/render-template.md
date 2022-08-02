@@ -83,6 +83,6 @@
 
 ---
 
-`template render my_template.html`
+// Create a sample template with a sample context file
 
-`template new my_template.html`
+`rendit new my_template.html --engine tera`
