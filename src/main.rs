@@ -45,12 +45,7 @@ struct Cli {
     template_file: Option<PathBuf>,
 
     /// Override default context files with specified context file.
-    #[clap(
-        value_parser,
-        short,
-        long = "context-file",
-        value_name = "CONTEXT FILE"
-    )]
+    #[clap(value_parser, short, long = "context", value_name = "CONTEXT FILE")]
     context_file: Option<PathBuf>,
 
     #[clap(value_parser, short, long = "output", value_name = "OUTPUT FILE")]

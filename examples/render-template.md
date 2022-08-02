@@ -26,24 +26,24 @@
 
 ---
 
-*Missing input `<TEMPLATE FILE>` ? -check STDIN + print to STDOUT by default instead of file + If missing `-c` or `--context-file`, try default `default.ctx.json` file. If missing Exit with explanation  
+*Missing input `<TEMPLATE FILE>` ? -check STDIN + print to STDOUT by default instead of file + If missing `-c` or `--context`, try default `default.ctx.json` file. If missing Exit with explanation  
 
 ---
 
 # usage 2
 
-* Every default value can be overridden with a switch: `--context-file` and/or `--output`
+* Every default value can be overridden with a switch: `--context` and/or `--output`
 
-* If `--context-file` is activated, use it for context,  
+* If `--context` is activated, use it for context,  
 	else, if my_template.ctx.html` exists, use it for context,  
 	else, if `default.ctx.html` exists, use it for context,  
 	else, error: No context was provided  
 
 `rendit ./my_template.html --output ./other_place.rendered.html --stdout > ./my_template.rendered.html`
 
-`rendit ./my_template.html --context-file ./my_template.json --stdout > ./my_template.rendered.html`
+`rendit ./my_template.html --context ./my_template.json --stdout > ./my_template.rendered.html`
 
-`rendit ./my_template.html --context-file ./my_template.json --pretty-stdout`
+`rendit ./my_template.html --context ./my_template.json --pretty-stdout`
 
 `rendit ./my_template.html --pretty-stdout`
 
@@ -53,7 +53,7 @@
 
 `rendit ./my_template.html --output ./my_template.rendered.html`
 
-`rendit ./my_template.html --context-file ./my_template.json --output ./my_template.rendered.html --stdout | send-tcp 192.168.0.1:445`
+`rendit ./my_template.html --context ./my_template.json --output ./my_template.rendered.html --stdout | send-tcp 192.168.0.1:445`
 
 # usage 4
 
