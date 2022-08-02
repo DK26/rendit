@@ -1,13 +1,11 @@
 use anyhow::{anyhow, Context, Result};
-use bat::PrettyPrinter;
 use clap::Parser;
-use handlebars::{Handlebars, TemplateError};
+use handlebars::Handlebars;
+// use human_panic::setup_panic;
 use log::LevelFilter;
 use regex::RegexBuilder;
 use simplelog::TermLogger;
 use std::{
-    borrow::Cow,
-    error::Error,
     fs::{self, OpenOptions},
     io::{BufWriter, Write},
     path::{Path, PathBuf},
@@ -72,20 +70,20 @@ struct Cli {
     ///
     /// WARNING: CLI output cannot be used for piping as ASCII/UTF-8 is transformed.
     /// Use `--output` switch if you wish to commit the rendered output to file.
-    #[clap(short, long, action)]
-    pretty: bool,
+    // #[clap(short, long, action)]
+    // pretty: bool,
 
     /// Open rendered output file
-    #[clap(short = 'P', long, action)]
-    preview: bool,
-
-    /// Print rendered result to STDOUT
-    #[clap(short, long, action)]
-    stdout: bool,
+    #[clap(short = 'O', long, action)]
+    open: bool,
 
     /// Constantly render changes in template file.  
     #[clap(short, long = "watch", value_name = "SECONDS", action)]
     watch_seconds: Option<u8>,
+
+    /// Print rendered result to STDOUT
+    #[clap(short, long, action)]
+    stdout: bool,
 }
 
 /// Write `content` to file `path` using BufWriter
@@ -93,12 +91,21 @@ fn write_to_file<P: AsRef<Path>>(content: &str, path: P) -> Result<()> {
     let file = OpenOptions::new()
         .create(true)
         .write(true)
-        .open(path)
-        .context("Unable to create a file")?;
+        .open(&path)
+        .with_context(|| {
+            format!(
+                "Unable to create file: \"{}\"",
+                path.as_ref().to_string_lossy()
+            )
+        })?;
 
     let mut bw = BufWriter::new(file);
-    bw.write_all(content.as_bytes())
-        .context("Unable to write rendered output to file")?;
+    bw.write_all(content.as_bytes()).with_context(|| {
+        format!(
+            "Unable to write rendered output to file: \"{}\"",
+            path.as_ref().to_string_lossy()
+        )
+    })?;
 
     Ok(())
 }
@@ -164,20 +171,20 @@ impl<'arg> From<TemplateData<'arg>> for Template {
     }
 }
 
-fn pretty_print(content: &str, language: &str) -> Result<()> {
-    let bytes_content = content.as_bytes();
+// fn pretty_print(content: &str, language: &str) -> Result<()> {
+//     let bytes_content = content.as_bytes();
 
-    PrettyPrinter::new()
-        .language(language) // Default: auto-detect
-        .line_numbers(false)
-        .grid(true)
-        .header(true)
-        .input(bat::Input::from_bytes(bytes_content))
-        .print()
-        .context("Unable to pretty print.")?;
+//     PrettyPrinter::new()
+//         .language(language) // Default: auto-detect
+//         .line_numbers(false)
+//         .grid(true)
+//         .header(true)
+//         .input(bat::Input::from_bytes(bytes_content))
+//         .print()
+//         .context("Unable to pretty print.")?;
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 fn stdin_read() -> Result<String> {
     let lines = std::io::stdin().lines();
@@ -198,91 +205,88 @@ fn stdin_read() -> Result<String> {
     Ok(result)
 }
 
-enum InputKind {
-    Stdin,
-    File,
-}
-
 struct TemplateData<'args> {
     contents: String,
-    input_kind: InputKind,
     file_path: Option<&'args PathBuf>,
 }
 
+// #[allow(unused)]
 struct ContextData {
     context: serde_json::Value,
     file_path: PathBuf,
 }
 
-// type RenderedTemplate = String;
 struct RenderedTemplate(String);
 
 fn render(template_data: TemplateData, context_data: ContextData) -> Result<RenderedTemplate> {
-    let default_language = "html";
+    // let default_language = "html";
 
-    let template_language = &*match template_data.file_path {
-        Some(p) => match p.extension() {
-            Some(ext) => ext.to_string_lossy(),
-            None => Cow::Borrowed(default_language),
-        },
-        None => Cow::Borrowed(default_language),
-    };
+    // let template_language = &*match template_data.file_path {
+    //     Some(p) => match p.extension() {
+    //         Some(ext) => ext.to_string_lossy(),
+    //         None => Cow::Borrowed(default_language),
+    //     },
+    //     None => Cow::Borrowed(default_language),
+    // };
 
     let template = Template::from(template_data);
     let result = match template {
         Template::Tera(contents) => {
             let context = tera::Context::from_value(context_data.context)
-                .context("Tera rejected Context object")?;
+                .context("Tera rejected Context object.")?;
 
-            match Tera::one_off(&contents, &context, true) {
-                Ok(rendered) => rendered,
-                Err(e) => {
-                    if let Some(source) = e.source() {
-                        log::error!("{source}");
-                        // eprintln!("{source}");
-                    }
-                    return Err(anyhow::Error::new(e).context("Unable to render template."));
-                }
-            }
+            // match Tera::one_off(&contents, &context, true) {
+            //     Ok(rendered) => rendered,
+            //     Err(e) => {
+            //         if let Some(source) = e.source() {
+            //             log::error!("{source}");
+            //         }
+            //         return Err(anyhow::Error::new(e).context("Unable to render template."));
+            //     }
+            // }
+
+            Tera::one_off(&contents, &context, true)
+                .context("Tera is unable to render the template.")?
         }
         Template::Handlebars(contents) => {
             let handlebars = Handlebars::new();
             let render = handlebars.render_template(&contents, &context_data.context);
-            match render {
-                Ok(contents) => contents,
-                Err(e) => {
-                    if let Some(source) = e.source() {
-                        if let Some(template_error) = source.downcast_ref::<TemplateError>() {
-                            let template_error_string = format!("{template_error}");
-                            pretty_print(&template_error_string, template_language)?;
-                            // eprintln!("{template_error}");
-                        }
-                    }
-                    return Err(anyhow::Error::new(e).context("Unable to render template."));
-                }
-            }
+            // match render {
+            //     Ok(contents) => contents,
+            //     Err(e) => {
+            //         if let Some(source) = e.source() {
+            //             if let Some(template_error) = source.downcast_ref::<TemplateError>() {
+            //                 let template_error_string = format!("{template_error}");
+            //                 pretty_print(&template_error_string, template_language)?;
+            //             }
+            //         }
+            //         return Err(anyhow::Error::new(e).context("Unable to render template."));
+            //     }
+            // }
+            render.context("Handlebars is unable to render the template.")?
         }
         Template::Liquid(contents) => {
             let template = liquid::ParserBuilder::with_stdlib()
                 .build()
-                .context("Unable to build Liquid parser.")?
+                .context("Liquid is unable to build the parser.")?
                 .parse(&contents);
 
-            let template = match template {
-                Ok(t) => t,
-                Err(e) => {
-                    let template_error_string = format!("{e}");
-                    pretty_print(&template_error_string, template_language)?;
-                    // eprintln!("{e}");
-                    return Err(anyhow::Error::new(e).context("Unable to parse template."));
-                }
-            };
+            // let template = match template {
+            //     Ok(t) => t,
+            //     Err(e) => {
+            //         let template_error_string = format!("{e}");
+            //         pretty_print(&template_error_string, template_language)?;
+            //         // eprintln!("{e}");
+            //         return Err(anyhow::Error::new(e).context("Unable to parse template."));
+            //     }
+            // };
+            let template = template.context("Liquid is unable to parse the template.")?;
 
             let globals = liquid::object!(&context_data.context);
 
             template
                 .render(&globals)
-                .context("Unable to render template.")?
+                .context("Liquid is unable to render the template.")?
         }
         // Template::Unknown(engine, _) => panic!("Unknown template engine: `{engine}`"),
         Template::Unknown(engine, _) => return Err(anyhow!("Unknown template engine: `{engine}`")),
@@ -292,25 +296,55 @@ fn render(template_data: TemplateData, context_data: ContextData) -> Result<Rend
 }
 
 fn main() -> Result<()> {
+    // setup_panic!();
     let args = Cli::parse();
 
-    let template_data = if let Some(template_file) = &args.template_file {
+    let log_level = match args.verbose {
+        1 => LevelFilter::Info,
+        2 => LevelFilter::Debug,
+        _ => LevelFilter::Error,
+    };
+
+    TermLogger::init(
+        log_level,
+        simplelog::Config::default(),
+        simplelog::TerminalMode::Mixed,
+        simplelog::ColorChoice::Auto,
+    )
+    .context("Unable to initialize the logger.")?;
+
+    let template_file = if let Some(path) = &args.template_file {
+        Some(fs::canonicalize(path)?)
+    } else {
+        None
+    };
+
+    let template_data = if let Some(template_file) = &template_file {
+        log::info!("Rendering File: \"{}\"", template_file.to_string_lossy());
         TemplateData {
-            contents: fs::read_to_string(&template_file)
-                .context("Unable to load template file.")?,
-            input_kind: InputKind::File,
+            contents: fs::read_to_string(&template_file).with_context(|| {
+                format!(
+                    "Unable to load template file \"{}\"",
+                    template_file.to_string_lossy()
+                )
+            })?,
             file_path: Some(template_file),
         }
     } else {
         TemplateData {
             contents: stdin_read()?,
-            input_kind: InputKind::Stdin,
             file_path: None,
         }
     };
 
+    let context_file = if let Some(path) = &args.context_file {
+        Some(fs::canonicalize(path)?)
+    } else {
+        None
+    };
+
     let context_data = {
-        let context_file = if let Some(context_file) = &args.context_file {
+        let context_file = if let Some(context_file) = &context_file {
             context_file.to_owned()
         } else if let Some(template_file) = &args.template_file {
             let ctx_path = template_file.with_extension("ctx.json");
@@ -323,17 +357,19 @@ fn main() -> Result<()> {
             PathBuf::from(DEFAULT_CONTEXT_FILE)
         };
 
+        log::info!("Context File: \"{}\"", context_file.to_string_lossy());
+
         let contents = fs::read_to_string(&context_file).with_context(|| {
             format!(
-                "Unable to load context file '{}'",
+                "Unable to load context file \"{}\"",
                 context_file.to_string_lossy()
             )
         })?;
         ContextData {
-            // context: contents.into(),
+            // context: contents.into(), // not the way to do it as some engines did not recognize the JSON structure.
             context: serde_json::from_str(&contents).with_context(|| {
                 format!(
-                    "Unable to parse context from file '{}'",
+                    "Unable to parse JSON context from file \"{}\"",
                     context_file.to_string_lossy()
                 )
             })?,
@@ -344,6 +380,7 @@ fn main() -> Result<()> {
     let rendered_template = render(template_data, context_data)?;
 
     if let Some(output_arg) = args.output_file {
+        log::info!("Rendered Output File: \"{}\"", output_arg.to_string_lossy());
         write_to_file(&rendered_template.0, output_arg)?;
     } else if let Some(template_file) = args.template_file {
         let mut extension = String::from("rendered");
@@ -355,6 +392,11 @@ fn main() -> Result<()> {
 
         let mut output_path = template_file.clone();
         output_path.set_extension(extension);
+
+        log::info!(
+            "Rendered Output File: \"{}\"",
+            output_path.to_string_lossy()
+        );
         write_to_file(&rendered_template.0, output_path)?;
     } else {
         // let pretty_print_preconditions = [args.pretty, args.verbose > 0];
