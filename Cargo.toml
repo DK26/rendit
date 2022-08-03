@@ -22,6 +22,9 @@ simplelog = "^0.12.0"
 anyhow = "1"
 # human-panic = "1"
 opener = "0.5"
+enum-iterator = "1"
+strum = "0.24"
+strum_macros = "0.24"
 
 [profile.release]
 panic = 'abort'

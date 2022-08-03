@@ -2,6 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use handlebars::Handlebars;
 // use human_panic::setup_panic;
+use enum_iterator::{all, Sequence};
 use log::LevelFilter;
 use regex::RegexBuilder;
 use simplelog::TermLogger;
@@ -9,6 +10,8 @@ use std::{
     fs::{self, OpenOptions},
     io::{BufWriter, Write},
     path::{Path, PathBuf},
+    process,
+    str::FromStr,
 };
 use tera::Tera;
 
@@ -21,10 +24,37 @@ type EngineName = String;
 // TODO: Build logic for template table ver1
 // TODO: Build logic for template table ver2
 // TODO: Bonus: `--watch`
-// TODO: `--engine`
+// DONE: `--engine`
+// DONE: `--engine-list`
 // TODO: Bonus: `--stdout`
 
 const DEFAULT_CONTEXT_FILE: &str = "default.ctx.json";
+
+#[derive(Clone, Copy, Debug, PartialEq, Sequence, strum_macros::Display)]
+enum TemplateEngine {
+    Tera,
+    Liquid,
+    Handlebars,
+    None,
+}
+
+impl FromStr for TemplateEngine {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let res = match s.to_lowercase().as_str() {
+            "tera" => TemplateEngine::Tera,
+            "liquid" | "liq" => TemplateEngine::Liquid,
+            "handlebars" | "hbs" => TemplateEngine::Handlebars,
+            _ => {
+                return Err(anyhow!(
+                    "Please try one of the supported engines in `--engine-list`"
+                ))
+            }
+        };
+        Ok(res)
+    }
+}
 
 enum Template {
     Tera(Contents),
@@ -89,6 +119,15 @@ struct Cli {
     /// Print rendered result to STDOUT
     #[clap(short, long, action)]
     stdout: bool,
+
+    /// Forces rendering with the specified, supported engine.
+    /// Recommended only for use only when no magic comment and file extension are available to determine the rendering engine.
+    #[clap(value_parser, short = 'e', long = "engine", value_name = "ENGINE NAME")]
+    engine: Option<TemplateEngine>,
+
+    /// Print supported engines list
+    #[clap(long, action)]
+    engine_list: bool,
 }
 
 /// Write `content` to file `path` using BufWriter
@@ -223,7 +262,25 @@ struct ContextData {
 
 struct RenderedTemplate(String);
 
-fn render(template_data: TemplateData, context_data: ContextData) -> Result<RenderedTemplate> {
+enum EngineDetection {
+    Auto,
+    Force(TemplateEngine),
+}
+
+impl From<Option<TemplateEngine>> for EngineDetection {
+    fn from(te: Option<TemplateEngine>) -> Self {
+        match te {
+            Some(engine) => EngineDetection::Force(engine),
+            None => EngineDetection::Auto,
+        }
+    }
+}
+
+fn render(
+    template_data: TemplateData,
+    context_data: ContextData,
+    engine_detection: EngineDetection,
+) -> Result<RenderedTemplate> {
     // let default_language = "html";
 
     // let template_language = &*match template_data.file_path {
@@ -234,7 +291,19 @@ fn render(template_data: TemplateData, context_data: ContextData) -> Result<Rend
     //     None => Cow::Borrowed(default_language),
     // };
 
-    let template = Template::from(template_data);
+    let template = match engine_detection {
+        EngineDetection::Auto => Template::from(template_data),
+        EngineDetection::Force(engine) => {
+            log::debug!("Forced Engine: `{engine}`");
+            match engine {
+                TemplateEngine::Tera => Template::Tera(template_data.contents),
+                TemplateEngine::Liquid => Template::Liquid(template_data.contents),
+                TemplateEngine::Handlebars => Template::Handlebars(template_data.contents),
+                TemplateEngine::None => Template::NoEngine(template_data.contents),
+            }
+        }
+    };
+
     let result = match template {
         Template::Tera(contents) => {
             let context = tera::Context::from_value(context_data.context)
@@ -303,6 +372,15 @@ fn render(template_data: TemplateData, context_data: ContextData) -> Result<Rend
 fn main() -> Result<()> {
     // setup_panic!();
     let args = Cli::parse();
+
+    if args.engine_list {
+        let supported_engines = all::<TemplateEngine>().collect::<Vec<_>>();
+
+        for (i, engine) in supported_engines.iter().enumerate() {
+            println!("{}. {}", i + 1, engine);
+        }
+        process::exit(0);
+    }
 
     let log_level = match args.verbose {
         1 => LevelFilter::Info,
@@ -382,7 +460,7 @@ fn main() -> Result<()> {
         }
     };
 
-    let rendered_template = render(template_data, context_data)?;
+    let rendered_template = render(template_data, context_data, args.engine.into())?;
 
     if let Some(output_arg) = args.output_file {
         log::info!("Rendered Output File: \"{}\"", output_arg.to_string_lossy());
