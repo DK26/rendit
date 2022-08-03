@@ -16,11 +16,13 @@ type Contents = String;
 type EngineName = String;
 
 // TODO: 3.8.2022
-// TODO: `--open`
+// DONE: `--open`
 // TODO: Updated CLI Descriptions + Description with Source Code and License
 // TODO: Build logic for template table ver1
 // TODO: Build logic for template table ver2
 // TODO: Bonus: `--watch`
+// TODO: `--engine`
+// TODO: Bonus: `--stdout`
 
 const DEFAULT_CONTEXT_FILE: &str = "default.ctx.json";
 
@@ -386,7 +388,7 @@ fn main() -> Result<()> {
         log::info!("Rendered Output File: \"{}\"", output_arg.to_string_lossy());
         write_to_file(&rendered_template.0, &output_arg)?;
         if args.open {
-            opener::open_browser(&output_arg)?;
+            opener::open(&output_arg)?;
         }
     } else if let Some(template_file) = args.template_file {
         let mut extension = String::from("rendered");
@@ -405,7 +407,7 @@ fn main() -> Result<()> {
         );
         write_to_file(&rendered_template.0, &output_path)?;
         if args.open {
-            opener::open_browser(&output_path)?;
+            opener::open(&output_path)?;
         }
     } else {
         // let pretty_print_preconditions = [args.pretty, args.verbose > 0];
