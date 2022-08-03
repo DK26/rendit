@@ -68,13 +68,14 @@ struct Cli {
     #[clap(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
 
-    /// Print pretty, highlighted output to the terminal.
-    ///
-    /// WARNING: CLI output cannot be used for piping as ASCII/UTF-8 is transformed.
-    /// Use `--output` switch if you wish to commit the rendered output to file.
+    // /Print pretty, highlighted output to the terminal.
+    // /
+    // /WARNING: CLI output cannot be used for piping as ASCII/UTF-8 is transformed.
+    // /Use `--output` switch if you wish to commit the rendered output to file.
     // #[clap(short, long, action)]
     // pretty: bool,
 
+    //
     /// Open rendered output file
     #[clap(short = 'O', long, action)]
     open: bool,
@@ -383,7 +384,10 @@ fn main() -> Result<()> {
 
     if let Some(output_arg) = args.output_file {
         log::info!("Rendered Output File: \"{}\"", output_arg.to_string_lossy());
-        write_to_file(&rendered_template.0, output_arg)?;
+        write_to_file(&rendered_template.0, &output_arg)?;
+        if args.open {
+            opener::open_browser(&output_arg)?;
+        }
     } else if let Some(template_file) = args.template_file {
         let mut extension = String::from("rendered");
 
@@ -399,7 +403,10 @@ fn main() -> Result<()> {
             "Rendered Output File: \"{}\"",
             output_path.to_string_lossy()
         );
-        write_to_file(&rendered_template.0, output_path)?;
+        write_to_file(&rendered_template.0, &output_path)?;
+        if args.open {
+            opener::open_browser(&output_path)?;
+        }
     } else {
         // let pretty_print_preconditions = [args.pretty, args.verbose > 0];
         //     if pretty_print_preconditions.iter().any(|&c| c) {
