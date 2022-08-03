@@ -17,6 +17,8 @@ use std::{
     path::{Path, PathBuf},
     process,
     str::FromStr,
+    thread,
+    time::Duration,
 };
 use tera::Tera;
 
@@ -27,9 +29,10 @@ type EngineName = String;
 // TODO: Bonus: Updated CLI Descriptions + Description with Source Code and License
 // TODO: Build logic for template table ver1
 // TODO: Build logic for template table ver2
-// TODO: Bonus: `--watch`
+// TODO: Bonus: STDIN loop
 
 const DEFAULT_CONTEXT_FILE: &str = "default.ctx.json";
+const DEFAULT_WATCH_SLEEP_TIME: Duration = Duration::from_secs(2);
 
 // A simple implementation of `% touch path` (ignores existing files)
 // Inspired by: https://doc.rust-lang.org/rust-by-example/std_misc/fs.html
@@ -232,18 +235,23 @@ enum Template {
     long_about = None
 )]
 struct Cli {
-    /// The template file path, requiring a `default.ctx.json` context file or template specific context file
-    /// containing the template name, ending with the `.ctx.json` extension.
+    /// The template file path requiring a `default.ctx.json` context file or template specific context file
+    /// containing the template name and ending with the `.ctx.json` extension:
     ///
-    /// e.g. for `my_template.html`, a specific context file name will be `my_template.ctx.json`, located under the same directory.
+    /// e.g.
+    ///  For the Template file `my_template.html`
+    ///  the context file would be `my_template.ctx.json`
+    ///  When both are located under the same directory.
     ///
-    /// NOTICE: Providing `<TEMPLATE FILE>` file, produces a default rendered output file with the proper extension `<TEMPLATE FILE>.rendered.<extension>`.
+    ///  If `my_template.ctx.json` is missing, the tool will attempt to load `default.ctx.json` under the same directory.
     ///
-    /// NOTICE: By NOT providing `<TEMPLATE FILE>`, the CLI will attempt to read the template data from STDIN, WITHOUT producing a default `.rendered.<extension>` file.
+    /// Output:
+    ///  - Providing `<TEMPLATE FILE>` file will automatically produce a rendered output file with a proper name and extension: `<TEMPLATE NAME>.rendered.<extension>`.
+    ///  - NOT providing `<TEMPLATE FILE>`, will trigger STDIN mode and will attempt to read the template data from STDIN, WITHOUT producing an output file.
     #[clap(value_parser, value_name = "TEMPLATE FILE")]
     template_file: Option<AbsolutePath>,
 
-    /// Override default context files with specified context file.
+    /// Override loading of the default context file with the specified context file.
     #[clap(value_parser, short, long = "context", value_name = "CONTEXT FILE")]
     context_file: Option<AbsolutePath>,
 
@@ -255,8 +263,9 @@ struct Cli {
     /// `-v` sets logging level to INFO
     /// `-vv` sets logging level to DEBUG
     ///
-    /// WARNING: Effects CLI output.
-    /// Sse `--output` switch if you wish to commit the rendered output to file.
+    /// WARNING: Effects CLI / STDOUT output.
+    /// Use the `--output` switch if you wish to commit the rendered output to file.
+    /// Use the `--stderr` switch to avoid including the logger messages in the final output.
     #[clap(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
 
@@ -272,9 +281,9 @@ struct Cli {
     #[clap(short = 'O', long, action)]
     open: bool,
 
-    /// Constantly render changes in template file.  
-    #[clap(short, long = "watch", value_name = "SECONDS", action)]
-    watch_seconds: Option<u8>,
+    /// Constantly render changes in template file every 2 seconds.  
+    #[clap(short, long, action)]
+    watch: bool,
 
     /// Print rendered result to STDOUT
     #[clap(short, long, action)]
@@ -284,12 +293,12 @@ struct Cli {
     #[clap(short, long, action)]
     stderr: bool,
 
-    /// Forces rendering with the specified, supported engine.
-    /// Recommended only for use only when no magic comment and file extension are available to determine the rendering engine.
+    /// Force rendering with the specified render engine.
+    /// Use only when there is no magic comment or a template file extension available.
     #[clap(value_parser, short = 'e', long = "engine", value_name = "ENGINE NAME")]
     engine: Option<TemplateEngine>,
 
-    /// Print supported engines list
+    /// Print supported engine list for the `--engine` option.
     #[clap(long, action)]
     engine_list: bool,
 }
@@ -561,103 +570,112 @@ fn main() -> Result<()> {
     )
     .context("Unable to initialize the logger.")?;
 
-    let template_file = &args.template_file;
+    let mut has_looped = false;
 
-    let template_data = if let Some(template_file) = &template_file {
-        log::info!("Rendering File: \"{template_file}\"");
-        TemplateData {
-            contents: fs::read_to_string(&template_file)
-                .with_context(|| format!("Unable to load template file \"{template_file}\""))?,
-            file_path: Some(template_file),
-        }
-    } else {
-        TemplateData {
-            contents: stdin_read()?,
-            file_path: None,
-        }
-    };
+    'main: loop {
+        let template_file = &args.template_file;
 
-    let context_file = &args.context_file;
-    // let context_file = if let Some(path) = &args.context_file {
-    //     Some(path.canonicalize()?)
-    // } else {
-    //     None
-    // };
-
-    let context_data = {
-        let context_file = if let Some(context_file) = &context_file {
-            context_file.to_owned()
-        } else if let Some(template_file) = &args.template_file {
-            let ctx_path = template_file.with_extension("ctx.json");
-
-            if ctx_path.exists() {
-                ctx_path.into()
-            } else {
-                PathBuf::from(DEFAULT_CONTEXT_FILE).into()
+        let template_data = if let Some(template_file) = &template_file {
+            log::info!("Rendering File: \"{template_file}\"");
+            TemplateData {
+                contents: fs::read_to_string(&template_file)
+                    .with_context(|| format!("Unable to load template file \"{template_file}\""))?,
+                file_path: Some(template_file),
             }
         } else {
-            PathBuf::from(DEFAULT_CONTEXT_FILE).into()
+            TemplateData {
+                contents: stdin_read()?,
+                file_path: None,
+            }
         };
 
-        log::info!("Context File: \"{context_file}\"");
+        let context_file = &args.context_file;
+        // let context_file = if let Some(path) = &args.context_file {
+        //     Some(path.canonicalize()?)
+        // } else {
+        //     None
+        // };
 
-        let contents = fs::read_to_string(&context_file)
-            .with_context(|| format!("Unable to load context file \"{context_file}\""))?;
-        ContextData {
-            // context: contents.into(), // not the way to do it as some engines did not recognize the JSON structure.
-            context: serde_json::from_str(&contents).with_context(|| {
-                format!("Unable to parse JSON context from file \"{context_file}\"")
-            })?,
-            file_path: context_file,
+        let context_data = {
+            let context_file = if let Some(context_file) = &context_file {
+                context_file.to_owned()
+            } else if let Some(template_file) = &args.template_file {
+                let ctx_path = template_file.with_extension("ctx.json");
+
+                if ctx_path.exists() {
+                    ctx_path.into()
+                } else {
+                    PathBuf::from(DEFAULT_CONTEXT_FILE).into()
+                }
+            } else {
+                PathBuf::from(DEFAULT_CONTEXT_FILE).into()
+            };
+
+            log::info!("Context File: \"{context_file}\"");
+
+            let contents = fs::read_to_string(&context_file)
+                .with_context(|| format!("Unable to load context file \"{context_file}\""))?;
+            ContextData {
+                // context: contents.into(), // not the way to do it as some engines did not recognize the JSON structure.
+                context: serde_json::from_str(&contents).with_context(|| {
+                    format!("Unable to parse JSON context from file \"{context_file}\"")
+                })?,
+                file_path: context_file,
+            }
+        };
+
+        let rendered_template = render(template_data, context_data, args.engine.into())?;
+
+        if args.stderr {
+            eprintln!("{}", rendered_template.0);
         }
-    };
 
-    let rendered_template = render(template_data, context_data, args.engine.into())?;
+        if args.stdout {
+            println!("{}", rendered_template.0);
+        }
 
-    if args.stderr {
-        eprintln!("{}", rendered_template.0);
+        // Output stages
+        if let Some(ref output_arg) = args.output_file {
+            log::info!("Rendered Output File: \"{output_arg}\"");
+            write_to_file(&rendered_template.0, &output_arg)?;
+            if !has_looped && args.open {
+                log::info!("Opening: \"{output_arg}\"");
+                opener::open(&output_arg)?;
+            }
+        } else if let Some(ref template_file) = args.template_file {
+            let mut extension = String::from("rendered");
+
+            if let Some(ext) = template_file.extension() {
+                extension.push('.');
+                extension.push_str(&*ext.to_string_lossy());
+            }
+
+            let mut output_path = template_file.to_path_buf();
+            output_path.set_extension(extension);
+
+            let output_path: AbsolutePath = output_path.into();
+
+            log::info!("Rendered Output File: \"{output_path}\"");
+            write_to_file(&rendered_template.0, &output_path)?;
+            if !has_looped && args.open {
+                log::info!("Opening: \"{output_path}\"");
+                opener::open(&output_path)?;
+            }
+        } else if !args.stdout {
+            // let pretty_print_preconditions = [args.pretty, args.verbose > 0];
+            //     if pretty_print_preconditions.iter().any(|&c| c) {
+            //         pretty_print(&result, Some(template_extension))
+            //     } else {
+            //         println!("{result}");
+            //     }
+            println!("{}", rendered_template.0);
+        }
+        if args.watch {
+            thread::sleep(DEFAULT_WATCH_SLEEP_TIME);
+            has_looped = true;
+        } else {
+            break 'main;
+        }
     }
-
-    if args.stdout {
-        println!("{}", rendered_template.0);
-    }
-
-    // Output stages
-    if let Some(output_arg) = args.output_file {
-        log::info!("Rendered Output File: \"{output_arg}\"");
-        write_to_file(&rendered_template.0, &output_arg)?;
-        if args.open {
-            log::info!("Opening: \"{output_arg}\"");
-            opener::open(&output_arg)?;
-        }
-    } else if let Some(template_file) = args.template_file {
-        let mut extension = String::from("rendered");
-
-        if let Some(ext) = template_file.extension() {
-            extension.push('.');
-            extension.push_str(&*ext.to_string_lossy());
-        }
-
-        let mut output_path = template_file.to_path_buf();
-        output_path.set_extension(extension);
-
-        let output_path: AbsolutePath = output_path.into();
-
-        log::info!("Rendered Output File: \"{output_path}\"");
-        write_to_file(&rendered_template.0, &output_path)?;
-        if args.open {
-            log::info!("Opening: \"{output_path}\"");
-            opener::open(&output_path)?;
-        }
-    } else if !args.stdout {
-        // let pretty_print_preconditions = [args.pretty, args.verbose > 0];
-        //     if pretty_print_preconditions.iter().any(|&c| c) {
-        //         pretty_print(&result, Some(template_extension))
-        //     } else {
-        //         println!("{result}");
-        //     }
-        println!("{}", rendered_template.0);
-    }
-
     Ok(())
 }

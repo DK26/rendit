@@ -75,11 +75,11 @@ graph TD;
     SC_OUTPUT ==>|Yes| FILE;
     SC_OUTPUT .->|No| X;
     FILE[Rendered File] ==> OPEN_SWITCH;
-    OPEN_SWITCH{'open' switch};
+    OPEN_SWITCH{First Loop && 'open' switch};
     OPEN_SWITCH ==> |Yes| OPEN_FILE;
-    OPEN_SWITCH .-> |No| X;
+    OPEN_SWITCH --> |No| LOOPC;
     OPEN_FILE(Open File for Preview);
-    OPEN_FILE .-> X;
+    OPEN_FILE ==> LOOPC;
     L --> |No| STDOUT2;
     STDOUT2{'stdout' switch}
     STDOUT2 --> |No| K;
@@ -94,5 +94,10 @@ graph TD;
     M --> |Output| K;
     P .-> |Yes| X;
     P --> |No| U;
+    LOOPC{'watch' switch};
+    LOOPC ==> |Yes| SLEEP;
+    LOOPC .-> |No| X;
+    SLEEP(Sleep 2 seconds)
+    SLEEP ==>|Loop| A;
     X(END);
 ```  
