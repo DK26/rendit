@@ -27,7 +27,7 @@ graph TD;
     TSC .-> |No| X;
     Q[Template Data];
     Q --> C;
-    C{Has Context Argument};
+    C{'context' Argument};
     C ==> |Yes| E;
     C --> |No| T;
     T{Has Template File Argument};
@@ -62,7 +62,7 @@ graph TD;
     STDERR ==> |Yes| PRINT_STDERR
     PRINT_STDERR(Print to STDERR);
     R --> |Output| H;
-    H{Has Output Argument};
+    H{'output' Argument};
     H --> |No| L;
     L{Has Template File Argument};
     H ==> |Yes| O;
