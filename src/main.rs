@@ -1,14 +1,19 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use handlebars::Handlebars;
+use path_slash::PathExt;
 // use human_panic::setup_panic;
 use enum_iterator::{all, Sequence};
 use log::LevelFilter;
 use regex::RegexBuilder;
 use simplelog::TermLogger;
 use std::{
+    borrow::Borrow,
+    env::current_exe,
+    ffi::{OsStr, OsString},
     fs::{self, OpenOptions},
     io::{BufWriter, Write},
+    ops::Deref,
     path::{Path, PathBuf},
     process,
     str::FromStr,
@@ -30,6 +35,164 @@ type EngineName = String;
 
 const DEFAULT_CONTEXT_FILE: &str = "default.ctx.json";
 
+// A simple implementation of `% touch path` (ignores existing files)
+// Inspired by: https://doc.rust-lang.org/rust-by-example/std_misc/fs.html
+fn touch<P: AsRef<Path>>(path: P) -> Result<()> {
+    OpenOptions::new().create(true).write(true).open(path)?;
+    Ok(())
+}
+
+// This function attempts to be ignorant about any problems.
+// It just tries to figure out if a given file path location.
+// If the path doesn't exists, it assumes someone else will scream about it.
+// On failure, it just returns the original Path.
+#[inline]
+fn new_canonicalize_path_buf<P: AsRef<Path>>(path: P) -> PathBuf {
+    // Canonicalize seem to be having trouble on Windows with relative paths that include a backslash.
+    // This work around is meant to make sure that before Canonicalize encounters the given path,
+    // its backslashes will be replaced with regular ones so `canonicalize` will be able to handle it.
+    let path: PathBuf = if path.as_ref().has_root() {
+        path.as_ref().into()
+    } else {
+        (&*path.as_ref().to_slash_lossy()).into()
+    };
+
+    match fs::canonicalize(&path) {
+        Ok(abs_path) => abs_path,
+        // On failure of getting the full path, keep the relative path.
+        //
+        // Possible failures of `fs::canonicalize`:
+        //  1. path does not exist.
+        //  2. A non-final component in path is not a directory.
+        Err(e) => match e.kind() {
+            std::io::ErrorKind::NotFound => match touch(&path) {
+                Ok(_) => new_canonicalize_path_buf(&path),
+                Err(_) => path,
+            },
+            _ => path,
+        },
+    }
+}
+
+// Has the potential to be more correct. For the alpha and beta stages, I'll keep this function around.
+#[inline]
+fn new_full_path_buf<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
+    if path.as_ref().has_root() {
+        Ok(path.as_ref().to_owned())
+    } else {
+        let exe_dir = current_exe()
+            .context("Unable to get current executable file location")?
+            .parent()
+            .context("Unable to get current executable directory")?
+            .to_owned();
+
+        Ok(exe_dir.join(path))
+    }
+}
+
+// TODO: Move to an external crate, improve and with some more ideas and publish on crates.io.
+// Should behave just like a `PathBuf` and therefore should have the same methods + New security features (Restrict trait?)
+#[derive(Clone, Debug)]
+struct AbsolutePath {
+    path: PathBuf,
+}
+
+impl AbsolutePath {
+    #[inline]
+    fn into_inner(self) -> PathBuf {
+        self.path
+    }
+}
+
+impl<T: ?Sized + AsRef<OsStr>> From<&T> for AbsolutePath {
+    /// Converts a borrowed [`OsStr`] to a [`AbsolutePath`].
+    ///
+    /// Allocates a [`AbsolutePath`] and copies the data into it.
+    #[inline]
+    fn from(s: &T) -> AbsolutePath {
+        AbsolutePath {
+            // path: new_full_path_buf(s.as_ref()).unwrap_or_else(|_| s.into()),
+            path: new_canonicalize_path_buf(s.as_ref()),
+        }
+    }
+}
+
+impl From<OsString> for AbsolutePath {
+    #[inline]
+    fn from(s: OsString) -> Self {
+        AbsolutePath {
+            // path: new_full_path_buf(&s).unwrap_or_else(|_| s.into()),
+            path: new_canonicalize_path_buf(s),
+        }
+    }
+}
+
+impl From<PathBuf> for AbsolutePath {
+    #[inline]
+    fn from(s: PathBuf) -> Self {
+        AbsolutePath {
+            // path: new_full_path_buf(&s).unwrap_or(s),
+            path: new_canonicalize_path_buf(s),
+        }
+    }
+}
+
+impl FromStr for AbsolutePath {
+    type Err = anyhow::Error;
+
+    #[inline]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let res = AbsolutePath {
+            // path: new_full_path_buf(s).unwrap_or_else(|_| s.into()),
+            path: new_canonicalize_path_buf(s),
+        };
+        Ok(res)
+    }
+}
+
+impl std::fmt::Display for AbsolutePath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.path.to_string_lossy())
+    }
+}
+
+impl AsRef<Path> for AbsolutePath {
+    #[inline]
+    fn as_ref(&self) -> &Path {
+        self.path.as_ref()
+    }
+}
+
+impl AsRef<PathBuf> for AbsolutePath {
+    #[inline]
+    fn as_ref(&self) -> &PathBuf {
+        &self.path
+    }
+}
+
+impl AsRef<OsStr> for AbsolutePath {
+    #[inline]
+    fn as_ref(&self) -> &OsStr {
+        self.path.as_ref()
+    }
+}
+
+impl Borrow<Path> for AbsolutePath {
+    #[inline]
+    fn borrow(&self) -> &Path {
+        self.path.borrow()
+    }
+}
+
+impl Deref for AbsolutePath {
+    type Target = Path;
+
+    #[inline]
+    fn deref(&self) -> &Path {
+        self.path.deref()
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Sequence, strum_macros::Display)]
 enum TemplateEngine {
     Tera,
@@ -46,6 +209,7 @@ impl FromStr for TemplateEngine {
             "tera" => TemplateEngine::Tera,
             "liquid" | "liq" => TemplateEngine::Liquid,
             "handlebars" | "hbs" => TemplateEngine::Handlebars,
+            "none" => TemplateEngine::None,
             _ => {
                 return Err(anyhow!(
                     "Please try one of the supported engines in `--engine-list`"
@@ -81,14 +245,14 @@ struct Cli {
     ///
     /// NOTICE: By NOT providing `<TEMPLATE FILE>`, the CLI will attempt to read the template data from STDIN, WITHOUT producing a default `.rendered.<extension>` file.
     #[clap(value_parser, value_name = "TEMPLATE FILE")]
-    template_file: Option<PathBuf>,
+    template_file: Option<AbsolutePath>,
 
     /// Override default context files with specified context file.
     #[clap(value_parser, short, long = "context", value_name = "CONTEXT FILE")]
-    context_file: Option<PathBuf>,
+    context_file: Option<AbsolutePath>,
 
     #[clap(value_parser, short, long = "output", value_name = "OUTPUT FILE")]
-    output_file: Option<PathBuf>,
+    output_file: Option<AbsolutePath>,
 
     /// Sets the level of verbosity.
     ///  
@@ -135,6 +299,7 @@ fn write_to_file<P: AsRef<Path>>(content: &str, path: P) -> Result<()> {
     let file = OpenOptions::new()
         .create(true)
         .write(true)
+        .truncate(true)
         .open(&path)
         .with_context(|| {
             format!(
@@ -251,13 +416,13 @@ fn stdin_read() -> Result<String> {
 
 struct TemplateData<'args> {
     contents: String,
-    file_path: Option<&'args PathBuf>,
+    file_path: Option<&'args AbsolutePath>,
 }
 
 // #[allow(unused)]
 struct ContextData {
     context: serde_json::Value,
-    file_path: PathBuf,
+    file_path: AbsolutePath,
 }
 
 struct RenderedTemplate(String);
@@ -377,7 +542,7 @@ fn main() -> Result<()> {
         let supported_engines = all::<TemplateEngine>().collect::<Vec<_>>();
 
         for (i, engine) in supported_engines.iter().enumerate() {
-            println!("{}. {}", i + 1, engine);
+            println!("{}. {}", i + 1, engine.to_string().as_str().to_lowercase());
         }
         process::exit(0);
     }
@@ -396,21 +561,13 @@ fn main() -> Result<()> {
     )
     .context("Unable to initialize the logger.")?;
 
-    let template_file = if let Some(path) = &args.template_file {
-        Some(fs::canonicalize(path)?)
-    } else {
-        None
-    };
+    let template_file = &args.template_file;
 
     let template_data = if let Some(template_file) = &template_file {
-        log::info!("Rendering File: \"{}\"", template_file.to_string_lossy());
+        log::info!("Rendering File: \"{template_file}\"");
         TemplateData {
-            contents: fs::read_to_string(&template_file).with_context(|| {
-                format!(
-                    "Unable to load template file \"{}\"",
-                    template_file.to_string_lossy()
-                )
-            })?,
+            contents: fs::read_to_string(&template_file)
+                .with_context(|| format!("Unable to load template file \"{template_file}\""))?,
             file_path: Some(template_file),
         }
     } else {
@@ -420,41 +577,36 @@ fn main() -> Result<()> {
         }
     };
 
-    let context_file = if let Some(path) = &args.context_file {
-        Some(fs::canonicalize(path)?)
-    } else {
-        None
-    };
+    let context_file = &args.context_file;
+    // let context_file = if let Some(path) = &args.context_file {
+    //     Some(path.canonicalize()?)
+    // } else {
+    //     None
+    // };
 
     let context_data = {
         let context_file = if let Some(context_file) = &context_file {
             context_file.to_owned()
         } else if let Some(template_file) = &args.template_file {
             let ctx_path = template_file.with_extension("ctx.json");
+
             if ctx_path.exists() {
-                ctx_path
+                ctx_path.into()
             } else {
-                PathBuf::from(DEFAULT_CONTEXT_FILE)
+                PathBuf::from(DEFAULT_CONTEXT_FILE).into()
             }
         } else {
-            PathBuf::from(DEFAULT_CONTEXT_FILE)
+            PathBuf::from(DEFAULT_CONTEXT_FILE).into()
         };
 
-        log::info!("Context File: \"{}\"", context_file.to_string_lossy());
+        log::info!("Context File: \"{context_file}\"");
 
-        let contents = fs::read_to_string(&context_file).with_context(|| {
-            format!(
-                "Unable to load context file \"{}\"",
-                context_file.to_string_lossy()
-            )
-        })?;
+        let contents = fs::read_to_string(&context_file)
+            .with_context(|| format!("Unable to load context file \"{context_file}\""))?;
         ContextData {
             // context: contents.into(), // not the way to do it as some engines did not recognize the JSON structure.
             context: serde_json::from_str(&contents).with_context(|| {
-                format!(
-                    "Unable to parse JSON context from file \"{}\"",
-                    context_file.to_string_lossy()
-                )
+                format!("Unable to parse JSON context from file \"{context_file}\"")
             })?,
             file_path: context_file,
         }
@@ -463,9 +615,10 @@ fn main() -> Result<()> {
     let rendered_template = render(template_data, context_data, args.engine.into())?;
 
     if let Some(output_arg) = args.output_file {
-        log::info!("Rendered Output File: \"{}\"", output_arg.to_string_lossy());
+        log::info!("Rendered Output File: \"{output_arg}\"");
         write_to_file(&rendered_template.0, &output_arg)?;
         if args.open {
+            log::info!("Opening: \"{output_arg}\"");
             opener::open(&output_arg)?;
         }
     } else if let Some(template_file) = args.template_file {
@@ -476,15 +629,15 @@ fn main() -> Result<()> {
             extension.push_str(&*ext.to_string_lossy());
         }
 
-        let mut output_path = template_file.clone();
+        let mut output_path = template_file.to_path_buf();
         output_path.set_extension(extension);
 
-        log::info!(
-            "Rendered Output File: \"{}\"",
-            output_path.to_string_lossy()
-        );
+        let output_path: AbsolutePath = output_path.into();
+
+        log::info!("Rendered Output File: \"{output_path}\"");
         write_to_file(&rendered_template.0, &output_path)?;
         if args.open {
+            log::info!("Opening: \"{output_path}\"");
             opener::open(&output_path)?;
         }
     } else {

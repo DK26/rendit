@@ -25,6 +25,7 @@ opener = "0.5"
 enum-iterator = "1"
 strum = "0.24"
 strum_macros = "0.24"
+path-slash = "0.2"
 
 [profile.release]
 panic = 'abort'
