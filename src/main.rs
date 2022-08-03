@@ -281,7 +281,7 @@ struct Cli {
     #[clap(short = 'O', long, action)]
     open: bool,
 
-    /// Constantly render changes in template file every 2 seconds.  
+    /// Constantly render changes of both the template and the context files for every 2 seconds.  
     #[clap(short, long, action)]
     watch: bool,
 
