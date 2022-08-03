@@ -251,10 +251,11 @@ struct Cli {
     #[clap(value_parser, value_name = "TEMPLATE FILE")]
     template_file: Option<AbsolutePath>,
 
-    /// Override loading of the default context file with the specified context file.
+    /// Override automatic loading of the context file with the specified context file.
     #[clap(value_parser, short, long = "context", value_name = "CONTEXT FILE")]
     context_file: Option<AbsolutePath>,
 
+    /// Override automatic output file path with the specified file path.
     #[clap(value_parser, short, long = "output", value_name = "OUTPUT FILE")]
     output_file: Option<AbsolutePath>,
 
@@ -277,7 +278,7 @@ struct Cli {
     // pretty: bool,
 
     //
-    /// Open rendered output file
+    /// Open the rendered output file with a default software.
     #[clap(short = 'O', long, action)]
     open: bool,
 
@@ -285,11 +286,11 @@ struct Cli {
     #[clap(short, long, action)]
     watch: bool,
 
-    /// Print rendered result to STDOUT
+    /// Print rendered result to STDOUT.
     #[clap(short, long, action)]
     stdout: bool,
 
-    /// Print rendered result to STDERR
+    /// Print rendered result to STDERR.
     #[clap(short, long, action)]
     stderr: bool,
 
