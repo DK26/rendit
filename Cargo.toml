@@ -3,7 +3,7 @@ name = "rendit"
 authors = ["David Krasnitsky <dikaveman@gmail.com>"]
 version = "0.1.0"
 edition = "2021"
-description = "A multi-engine CLI tool for rendering templates offline."
+description = "Renders templates and their context offline automatically, supporting multiple engines."
 repository = "https://github.com/DK26/rendit"
 license = "MIT"
 
