@@ -15,6 +15,13 @@ use tera::Tera;
 type Contents = String;
 type EngineName = String;
 
+// TODO: 3.8.2022
+// TODO: `--open`
+// TODO: Updated CLI Descriptions + Description with Source Code and License
+// TODO: Build logic for template table ver1
+// TODO: Build logic for template table ver2
+// TODO: Bonus: `--watch`
+
 const DEFAULT_CONTEXT_FILE: &str = "default.ctx.json";
 
 enum Template {
