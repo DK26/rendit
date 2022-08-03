@@ -1,34 +1,100 @@
 ![render-template](assets/logo.gif)
 
-A template-design aid CLI tool for rendering HTML (and other) template files or piped input, supporting multiple rendering engines.
-
-Can also be used for shell scripting.
+Renders templates and their context offline automatically, supporting multiple engines.
 
 ## Features
 
-* Rendering (supported) template input either from file or standard input
-* Supports piping
-* Use either default or specified context JSON file for rendering
-* Pretty console output for quick render review
-* Output rendered result to file either with a proper default name or a specified one
+* Rendering template input either from file or standard input
+* Built with piping in mind
+* Uses either the default or the specified context JSON file for rendering
+* Supports splitting output between STDOUT, STDERR and output file
+* Can open the rendered output file for preview with a default software
+* Watch constantly for changes in both the template and its context file
+* Detects the right rendering engine with either a special starting comment (magic comment) `<!--template ENGINE_NAME>`  or by the template's file extension  
+* Can manually decide which engine to use out of the supported engine list: `--engine-list`
+
+## Commandline Usage
+
+<!--Examples TBD-->
+
+
+<details>
+<summary>Usage Help</summary>
+
+```text
+USAGE:
+    rendit [OPTIONS] [TEMPLATE FILE]
+
+ARGS:
+    <TEMPLATE FILE>
+            The template file path requiring a `default.ctx.json` context file or template specific
+            context file containing the template name and ending with the `.ctx.json` extension:
+            
+            e.g. For the Template file `my_template.html` the context file would be
+            `my_template.ctx.json` When both are located under the same directory.
+            
+            If `my_template.ctx.json` is missing, the tool will attempt to load `default.ctx.json`
+            under the same directory.
+            
+            Output: - Providing `<TEMPLATE FILE>` file will automatically produce a rendered output
+            file with a proper name and extension: `<TEMPLATE NAME>.rendered.<extension>`. - NOT
+            providing `<TEMPLATE FILE>`, will trigger STDIN mode and will attempt to read the
+            template data from STDIN, WITHOUT producing an output file.
+
+OPTIONS:
+    -c, --context <CONTEXT FILE>
+            Override automatic loading of the context file with the specified context file
+
+    -e, --engine <ENGINE NAME>
+            Force rendering with the specified render engine. Use only when there is no magic
+            comment or a template file extension available
+
+        --engine-list
+            Print supported engine list for the `--engine` option
+
+    -h, --help
+            Print help information
+
+    -o, --output <OUTPUT FILE>
+            Override automatic output file path with the specified file path
+
+    -O, --open
+            Open the rendered output file with a default software
+
+    -s, --stdout
+            Print rendered result to STDOUT
+
+    -s, --stderr
+            Print rendered result to STDERR
+
+    -v, --verbose
+            Sets the level of verbosity.
+            
+            `-v` sets logging level to INFO `-vv` sets logging level to DEBUG
+            
+            WARNING: Effects CLI / STDOUT output. Use the `--output` switch if you wish to commit
+            the rendered output to file. Use the `--stderr` switch to avoid including the logger
+            messages in the final output.
+
+    -V, --version
+            Print version information
+
+    -w, --watch
+            Constantly render changes of both the template and the context files for every 2 seconds
+
+```
+
+</details>
 
 ## Supported Template Engines
 
-| Name       | Short  | Version | Guide                                                         |  
+| Name       | Short  | Version | Guide / Manual / Tutorial                                     |  
 | ---------- | ------ | ------- | ------------------------------------------------------------- |
 | Tera       | `tera` | v1.16.0 | <https://tera.netlify.app/docs/#templates>                    |
 | Handlebars | `hbs`  | v4.3.3  | <https://handlebarsjs.com/guide/>                             |
 | Liquid     | `liq`  | v0.26.0 | <https://github.com/Shopify/liquid/wiki/Liquid-for-Designers> |
 
-## Commandline Usage
-
-Usage Here
-
-### Commandline Parameters
-
-Parameters here
-
-## Template Engines
+## Template Examples
 
 <details>
 <summary>Tera</summary>
@@ -41,6 +107,7 @@ The `Tera` rendering engine is highly advanced, capable and secure rendering eng
 
 ```html
 <HTML>
+    WIP
 </HTML>
 ```
 
@@ -56,6 +123,7 @@ The most popular rendering engine that is shared among multiple programming lang
   
 ```html
 <HTML>
+    WIP
 </HTML>
 ```
 
@@ -71,6 +139,7 @@ A highly advanced rendering engine, coming from the Ruby programming language.
 
 ```html
 <HTML>
+    WIP
 </HTML>
 ```
 
