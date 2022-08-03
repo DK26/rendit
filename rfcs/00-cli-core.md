@@ -53,6 +53,14 @@ graph TD;
     GSC ==> |Yes| R;
     GSC .-> |No| X;
     R[Rendered Template];
+    R --> |Output| STDOUT;
+    R --> |Output| STDERR;
+    STDOUT{'stdout' switch};
+    STDOUT ==> |Yes| PRINT_STDOUT
+    PRINT_STDOUT(Print to STDOUT);
+    STDERR{'stderr' switch};
+    STDERR ==> |Yes| PRINT_STDERR
+    PRINT_STDERR(Print to STDERR);
     R --> |Output| H;
     H{Has Output Argument};
     H --> |No| L;
@@ -72,7 +80,9 @@ graph TD;
     OPEN_SWITCH .-> |No| X;
     OPEN_FILE(Open File for Preview);
     OPEN_FILE .-> X;
-    L --> |No| K;
+    L --> |No| STDOUT2;
+    STDOUT2{'stdout' switch}
+    STDOUT2 --> |No| K;
     K(Print to STDOUT);
     K --> P;
     P{CTRL + C};

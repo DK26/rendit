@@ -24,14 +24,10 @@ type Contents = String;
 type EngineName = String;
 
 // TODO: 3.8.2022
-// DONE: `--open`
-// TODO: Updated CLI Descriptions + Description with Source Code and License
+// TODO: Bonus: Updated CLI Descriptions + Description with Source Code and License
 // TODO: Build logic for template table ver1
 // TODO: Build logic for template table ver2
 // TODO: Bonus: `--watch`
-// DONE: `--engine`
-// DONE: `--engine-list`
-// TODO: Bonus: `--stdout`
 
 const DEFAULT_CONTEXT_FILE: &str = "default.ctx.json";
 
@@ -283,6 +279,10 @@ struct Cli {
     /// Print rendered result to STDOUT
     #[clap(short, long, action)]
     stdout: bool,
+
+    /// Print rendered result to STDERR
+    #[clap(short, long, action)]
+    stderr: bool,
 
     /// Forces rendering with the specified, supported engine.
     /// Recommended only for use only when no magic comment and file extension are available to determine the rendering engine.
@@ -614,6 +614,15 @@ fn main() -> Result<()> {
 
     let rendered_template = render(template_data, context_data, args.engine.into())?;
 
+    if args.stderr {
+        eprintln!("{}", rendered_template.0);
+    }
+
+    if args.stdout {
+        println!("{}", rendered_template.0);
+    }
+
+    // Output stages
     if let Some(output_arg) = args.output_file {
         log::info!("Rendered Output File: \"{output_arg}\"");
         write_to_file(&rendered_template.0, &output_arg)?;
@@ -640,7 +649,7 @@ fn main() -> Result<()> {
             log::info!("Opening: \"{output_path}\"");
             opener::open(&output_path)?;
         }
-    } else {
+    } else if !args.stdout {
         // let pretty_print_preconditions = [args.pretty, args.verbose > 0];
         //     if pretty_print_preconditions.iter().any(|&c| c) {
         //         pretty_print(&result, Some(template_extension))
@@ -649,131 +658,6 @@ fn main() -> Result<()> {
         //     }
         println!("{}", rendered_template.0);
     }
-
-    // Checks if `<TEMPLATE FILE` was provided
-    // if let Some(template_file) = &args.template_file {
-    //     // let template_extension = &*args
-    //     let template_extension = &*template_file
-    //         .extension()
-    //         .expect("Template has no file extension.")
-    //         .to_string_lossy();
-
-    //     let rendered_template_extension = "rendered.".to_string() + template_extension;
-
-    //     let template_context_file = template_file.with_extension("ctx.json");
-
-    //     let context_json =
-    //         fs::read_to_string(&template_context_file).expect("Unable to load template context.");
-
-    //     let context: serde_json::Value =
-    //         serde_json::from_str(&context_json).expect("Unable to parse context JSON.");
-
-    //     let rendered_output_file = template_file.with_extension(&rendered_template_extension);
-
-    //     let log_level = match args.verbose {
-    //         1 => LevelFilter::Info,
-    //         2 => LevelFilter::Debug,
-    //         _ => LevelFilter::Error,
-    //     };
-
-    //     TermLogger::init(
-    //         log_level,
-    //         simplelog::Config::default(),
-    //         simplelog::TerminalMode::Mixed,
-    //         simplelog::ColorChoice::Auto,
-    //     )
-    //     .expect("Unable to initialize logger.");
-
-    //     log::info!("Rendering File: {}", template_file.to_string_lossy());
-    //     log::info!("Context File: {}", template_context_file.to_string_lossy());
-
-    //     let template_contents = load_template_file(&template_file);
-
-    //     let result = match template_contents {
-    //         TemplateKind::Tera(contents) => {
-    //             let context =
-    //                 Context::from_value(context).expect("Unable to create context from JSON.");
-
-    //             match Tera::one_off(&contents, &context, true) {
-    //                 Ok(rendered) => rendered,
-    //                 Err(e) => {
-    //                     if let Some(source) = e.source() {
-    //                         log::error!("{source}");
-    //                         // eprintln!("{source}");
-    //                     }
-
-    //                     panic!("Unable to render template.");
-    //                 }
-    //             }
-    //         }
-    //         TemplateKind::Handlebars(contents) => {
-    //             let handlebars = Handlebars::new();
-    //             let render = handlebars.render_template(&contents, &context);
-    //             match render {
-    //                 Ok(contents) => contents,
-    //                 Err(e) => {
-    //                     if let Some(source) = e.source() {
-    //                         if let Some(template_error) = source.downcast_ref::<TemplateError>() {
-    //                             let template_error_string = format!("{template_error}");
-    //                             pretty_print(&template_error_string, Some(template_extension));
-    //                             // eprintln!("{template_error}");
-    //                         }
-    //                     }
-    //                     panic!("Unable to render template.");
-    //                 }
-    //             }
-    //         }
-    //         TemplateKind::Liquid(contents) => {
-    //             let template = liquid::ParserBuilder::with_stdlib()
-    //                 .build()
-    //                 .expect("Unable to build Liquid parser.")
-    //                 .parse(&contents);
-
-    //             let template = match template {
-    //                 Ok(t) => t,
-    //                 Err(e) => {
-    //                     let template_error_string = format!("{e}");
-    //                     pretty_print(&template_error_string, Some(template_extension));
-    //                     // eprintln!("{e}");
-    //                     panic!("Unable to parse template.");
-    //                 }
-    //             };
-
-    //             let globals = liquid::object!(&context);
-
-    //             template
-    //                 .render(&globals)
-    //                 .expect("Unable to render template.")
-    //         }
-    //         TemplateKind::Unknown(engine, _) => panic!("Unknown template engine: `{engine}`"),
-    //         TemplateKind::NoEngine(raw) => raw,
-    //     };
-
-    //     // Cancelled: PrettyPrint -> Characters are not standard and cannot be redirected properly with pipes.. for now.
-    //     // PrettyPrinter::new()
-    //     //     .language("html") // Default: auto-detect
-    //     //     .line_numbers(true)
-    //     //     .grid(true)
-    //     //     .header(true)
-    //     //     .input(bat::Input::from_bytes(result.as_bytes()))
-    //     //     .print()
-    //     //     .unwrap();
-    //     let pretty_print_preconditions = [args.pretty, args.verbose > 0];
-
-    //     if pretty_print_preconditions.iter().any(|&c| c) {
-    //         pretty_print(&result, Some(template_extension))
-    //     } else {
-    //         println!("{result}");
-    //     }
-
-    //     // TODO: Output to file only if output argument is given
-    //     if let Some(output_path) = args.output_file {
-    //         println!("Activated Output Switch");
-    //         log::info!("Rendered Output File: {}", output_path.to_string_lossy());
-    //         write_to_file(&result, output_path);
-    //         // output_render(&result, rendered_output_file);
-    //     }
-    // }
 
     Ok(())
 }
