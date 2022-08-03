@@ -98,8 +98,8 @@ graph TD;
     LOOPC ==> |Yes| SLEEP;
     LOOPC .-> |No| X;
     SLEEP(Sleep 2 seconds);
-    SLEEP ==>|Loop| NOT_FIRST;
-    NOT_FIRST(Update: Not First Loop);
+    SLEEP ==>|Update| NOT_FIRST;
+    NOT_FIRST(Not First Loop);
     NOT_FIRST ==> |Loop| A;
     X(END);
 ```  
