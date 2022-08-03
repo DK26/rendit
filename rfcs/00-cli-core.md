@@ -33,7 +33,7 @@ graph TD;
     T{Has Template File Argument};
     T ==> |Yes| YT;
     T --> |No| D;
-    YT{`FILE NAME.ctx.json` File Exists};
+    YT{`FILE NAME.ctx.json` Exists};
     YT ==> |Yes| Y;
     YT --> |No| D;
     Y(Load Context `FILE NAME.ctx.json`);
@@ -56,10 +56,10 @@ graph TD;
     R --> |Output| STDOUT;
     R --> |Output| STDERR;
     STDOUT{'stdout' switch};
-    STDOUT ==> |Yes| PRINT_STDOUT
+    STDOUT ==> |Yes| PRINT_STDOUT;
     PRINT_STDOUT(Print to STDOUT);
     STDERR{'stderr' switch};
-    STDERR ==> |Yes| PRINT_STDERR
+    STDERR ==> |Yes| PRINT_STDERR;
     PRINT_STDERR(Print to STDERR);
     R --> |Output| H;
     H{'output' Argument};
@@ -81,7 +81,7 @@ graph TD;
     OPEN_FILE(Open File for Preview);
     OPEN_FILE ==> LOOPC;
     L --> |No| STDOUT2;
-    STDOUT2{'stdout' switch}
+    STDOUT2{'stdout' switch};
     STDOUT2 --> |No| K;
     K(Print to STDOUT);
     K --> P;
@@ -97,7 +97,9 @@ graph TD;
     LOOPC{'watch' switch};
     LOOPC ==> |Yes| SLEEP;
     LOOPC .-> |No| X;
-    SLEEP(Sleep 2 seconds)
-    SLEEP ==>|Loop| A;
+    SLEEP(Sleep 2 seconds);
+    SLEEP ==>|Loop| NOT_FIRST;
+    NOT_FIRST(Update: Not First Loop);
+    NOT_FIRST ==> |Loop| A;
     X(END);
 ```  
