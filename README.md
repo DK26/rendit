@@ -4,14 +4,15 @@ CLI tool for rendering templates with local JSON files as context. Supporting mu
 
 ## Features
 
-* Rendering template input either from file or standard input
-* Built with piping in mind
+* Renders template input either from file or standard input
 * Uses either the default or the specified context JSON file for rendering
+* Automatically Detects the right rendering engine with either a special starting comment (magic comment) `<!--template ENGINE_NAME>`  or by the template's file extension  
+* Allows you to manually decide which engine to use out of the supported engine list: `--engine-list`
+
+* Allows you to automatically open the rendered output file for preview with a default software
+* Allows you to watch constantly for changes in both the template and its context file
+* Built with pipeline support
 * Supports splitting output between STDOUT, STDERR and output file
-* Can open the rendered output file for preview with a default software
-* Watch constantly for changes in both the template and its context file
-* Detects the right rendering engine with either a special starting comment (magic comment) `<!--template ENGINE_NAME>`  or by the template's file extension  
-* Can manually decide which engine to use out of the supported engine list: `--engine-list`
 
 ## Commandline Usage
 
@@ -19,7 +20,7 @@ CLI tool for rendering templates with local JSON files as context. Supporting mu
 
 
 <details>
-<summary>Usage Help</summary>
+<summary>Usage Help (Click to expand)</summary>
 
 ```text
 USAGE:
@@ -97,22 +98,23 @@ OPTIONS:
 
 ## Supported Template Engines
 
-| Name       | Short  | Version | Guide / Manual / Tutorial                                     |  
-| ---------- | ------ | ------- | ------------------------------------------------------------- |
-| Tera       | `tera` | v1.16.0 | <https://tera.netlify.app/docs/#templates>                    |
-| Handlebars | `hbs`  | v4.3.3  | <https://handlebarsjs.com/guide/>                             |
-| Liquid     | `liq`  | v0.26.0 | <https://github.com/Shopify/liquid/wiki/Liquid-for-Designers> |
+| Name       | Short / Extension  | Version | Guide / Manual / Tutorial                                     |  
+| ---------- | ------------------ | ------- | ------------------------------------------------------------- |
+| Tera       | `tera`             | v1.16.0 | <https://tera.netlify.app/docs/#templates>                    |
+| Handlebars | `hbs`              | v4.3.3  | <https://handlebarsjs.com/guide/>                             |
+| Liquid     | `liq`              | v0.26.0 | <https://github.com/Shopify/liquid/wiki/Liquid-for-Designers> |
 
 ## Template Examples
 
 <details>
-<summary>Tera</summary>
-
-A good alternative choice if you are used to template engines such as `Jinja2`, `Django`, `Liquid` or `Twig`.  
-The `Tera` rendering engine is highly advanced, capable and secure rendering engine that follows the OWASP Top 10 guidelines to provide trust and security.
+<summary>Tera (Click to expand)</summary>
 
 * Guide: <https://tera.netlify.app/docs/#templates>  
 * Supported Version: **v1.16.0**
+* Repository: <https://github.com/Keats/tera>
+  
+A good alternative choice if you are used to template engines such as `Jinja2`, `Django`, `Liquid` or `Twig`.  
+The `Tera` rendering engine is highly advanced, capable and secure rendering engine that follows the OWASP Top 10 guidelines to provide trust and security.
 
 ```html
 <HTML>
@@ -123,13 +125,14 @@ The `Tera` rendering engine is highly advanced, capable and secure rendering eng
 </details>
 
 <details>
-<summary>Handlebars</summary>
-
-The most popular rendering engine that is shared among multiple programming languages. Somewhat more limited than other options.
+<summary>Handlebars (Click to expand)</summary>
 
 * Guide: <https://handlebarsjs.com/guide/>  
 * Supported Version: **v4.3.3**
+* Repository: <https://github.com/sunng87/handlebars-rust>
   
+The most popular rendering engine that is shared among multiple programming languages. Somewhat more limited than other options.
+
 ```html
 <HTML>
     WIP
@@ -139,12 +142,13 @@ The most popular rendering engine that is shared among multiple programming lang
 </details>
 
 <details>
-<summary>Liquid</summary>
-
-A highly advanced rendering engine, coming from the Ruby programming language.
+<summary>Liquid (Click to expand)</summary>
 
 * Guide: <https://github.com/Shopify/liquid/wiki/Liquid-for-Designers>  
 * Supported Version: **v0.26.0**
+* Repository: <https://github.com/cobalt-org/liquid-rust>
+  
+A highly advanced rendering engine, coming from the Ruby programming language.
 
 ```html
 <HTML>
