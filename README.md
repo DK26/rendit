@@ -1,6 +1,6 @@
 ![render-template](assets/logo.gif)
 
-Renders templates and their context offline automatically, supporting multiple engines.
+CLI tool for rendering templates with local JSON files as context. Supporting multiple template engines.
 
 ## Features
 
@@ -27,19 +27,29 @@ USAGE:
 
 ARGS:
     <TEMPLATE FILE>
-            The template file path requiring a `default.ctx.json` context file or template specific
-            context file containing the template name and ending with the `.ctx.json` extension:
-            
-            e.g. For the Template file `my_template.html` the context file would be
-            `my_template.ctx.json` When both are located under the same directory.
-            
-            If `my_template.ctx.json` is missing, the tool will attempt to load `default.ctx.json`
-            under the same directory.
-            
-            Output: - Providing `<TEMPLATE FILE>` file will automatically produce a rendered output
-            file with a proper name and extension: `<TEMPLATE NAME>.rendered.<extension>`. - NOT
-            providing `<TEMPLATE FILE>`, will trigger STDIN mode and will attempt to read the
-            template data from STDIN, WITHOUT producing an output file.
+            The template file to render.
+
+            This requires either the `<TEMPLATE NAME>.ctx.json` or the `default.ctx.json` context
+            files, to be present in the same directory.
+
+            [Example]
+
+            For the template file `my_template.html`, the automatic context file would be
+            `my_template.ctx.json` of the same directory.
+
+            If `my_template.ctx.json` is missing, `default.ctx.json` is automatically loaded
+            instead.
+
+            This behavior can be overridden by assigning the context file manually when using the
+            `--context` option.
+
+            [Output]
+
+            Providing `<TEMPLATE FILE>` automatically produces `<TEMPLATE
+            NAME>.rendered.<extension>` unless using the `--output` option.
+
+            By NOT providing `<TEMPLATE FILE>`, STDIN mode is activated and will be waiting for
+            template data stream in STDIN, printing results to STDOUT instead of writing to file.
 
 OPTIONS:
     -c, --context <CONTEXT FILE>
@@ -68,10 +78,10 @@ OPTIONS:
             Print rendered result to STDERR
 
     -v, --verbose
-            Sets the level of verbosity.
-            
+            Set the level of verbosity.
+
             `-v` sets logging level to INFO `-vv` sets logging level to DEBUG
-            
+
             WARNING: Effects CLI / STDOUT output. Use the `--output` switch if you wish to commit
             the rendered output to file. Use the `--stderr` switch to avoid including the logger
             messages in the final output.
@@ -80,8 +90,7 @@ OPTIONS:
             Print version information
 
     -w, --watch
-            Constantly render changes of both the template and the context files for every 2 seconds
-
+            Constantly render changes in the template with the context file for every 2 seconds
 ```
 
 </details>

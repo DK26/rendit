@@ -1,3 +1,4 @@
+<!--TEMPLATE tera-->
 <!--Tera Tutorial: https://tera.netlify.app/docs/#templates-->
 <!--Tera Supported Time Formats: https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html-->
 <!DOCTYPE html>
@@ -8,8 +9,8 @@
     <HR>
     <FONT SIZE="4">Welcome, FooBar !</FONT>
     <BR>Homepage: https://www.google.com
-    <BR> Jerusalem Time: <I>2022-08-04 18:08:53</I>
-    <BR> Berlin Time: <I>2022-08-04 17:08:53</I>
+    <BR> Jerusalem Time: <I>2022-08-04 18:12:03</I>
+    <BR> Berlin Time: <I>2022-08-04 17:12:03</I>
     <HR>
     <BR>Some Numbers: <I>1, 2, 3, 4, 5, 6</I>
 </BODY>
