@@ -98,11 +98,11 @@ OPTIONS:
 
 ## Supported Template Engines
 
-| Name       | Short / Extension  | Version | Guide / Manual / Tutorial                                     |  
-| ---------- | ------------------ | ------- | ------------------------------------------------------------- |
-| Tera       | `tera`             | v1.16.0 | <https://tera.netlify.app/docs/#templates>                    |
-| Handlebars | `hbs`              | v4.3.3  | <https://handlebarsjs.com/guide/>                             |
-| Liquid     | `liq`              | v0.26.0 | <https://github.com/Shopify/liquid/wiki/Liquid-for-Designers> |
+| Name       | Short / File Extension  | Version | Guide / Manual / Tutorial                                     |  
+| ---------- | ----------------------- | ------- | ------------------------------------------------------------- |
+| Tera       | `tera`                  | v1.16.0 | <https://tera.netlify.app/docs/#templates>                    |
+| Handlebars | `hbs`                   | v4.3.3  | <https://handlebarsjs.com/guide/>                             |
+| Liquid     | `liq`                   | v0.26.0 | <https://github.com/Shopify/liquid/wiki/Liquid-for-Designers> |
 
 ## Template Examples
 
@@ -110,7 +110,7 @@ OPTIONS:
 <summary>Tera (Click to expand)</summary>
 
 * Guide: <https://tera.netlify.app/docs/#templates>  
-* Supported Version: **v1.16.0**
+* Version: **v1.16.0**
 * Repository: <https://github.com/Keats/tera>
   
 A good alternative choice if you are used to template engines such as `Jinja2`, `Django`, `Liquid` or `Twig`.  
@@ -128,7 +128,7 @@ The `Tera` rendering engine is highly advanced, capable and secure rendering eng
 <summary>Handlebars (Click to expand)</summary>
 
 * Guide: <https://handlebarsjs.com/guide/>  
-* Supported Version: **v4.3.3**
+* Version: **v4.3.3**
 * Repository: <https://github.com/sunng87/handlebars-rust>
   
 The most popular rendering engine that is shared among multiple programming languages. Somewhat more limited than other options.
@@ -145,7 +145,7 @@ The most popular rendering engine that is shared among multiple programming lang
 <summary>Liquid (Click to expand)</summary>
 
 * Guide: <https://github.com/Shopify/liquid/wiki/Liquid-for-Designers>  
-* Supported Version: **v0.26.0**
+* Version: **v0.26.0**
 * Repository: <https://github.com/cobalt-org/liquid-rust>
   
 A highly advanced rendering engine, coming from the Ruby programming language.
