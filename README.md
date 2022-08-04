@@ -113,8 +113,8 @@ OPTIONS:
 * Version: **v1.16.0**
 * Repository: <https://github.com/Keats/tera>
   
-A good alternative choice if you are used to template engines such as `Jinja2`, `Django`, `Liquid` or `Twig`.  
-The `Tera` rendering engine is highly advanced, capable and secure rendering engine that follows the OWASP Top 10 guidelines to provide trust and security.
+A highly advanced, capable and secure by default rendering engine that follows the OWASP Top 10 guidelines.
+A good alternative choice if you are used to template engines such as `Jinja2`, `Django`, `Liquid` or `Twig`. Originated in the Rust programming language.  
 
 ```html
 <HTML>
@@ -131,7 +131,7 @@ The `Tera` rendering engine is highly advanced, capable and secure rendering eng
 * Version: **v4.3.3**
 * Repository: <https://github.com/sunng87/handlebars-rust>
   
-The most popular rendering engine that is shared among multiple programming languages. Somewhat more limited than other options.
+A most popular rendering engine that was implemented across many programming languages. Considered to be more limited compared to the other engines. Originated in the Javascript programming language.
 
 ```html
 <HTML>
@@ -148,7 +148,7 @@ The most popular rendering engine that is shared among multiple programming lang
 * Version: **v0.26.0**
 * Repository: <https://github.com/cobalt-org/liquid-rust>
   
-A highly advanced rendering engine, coming from the Ruby programming language.
+A highly advanced, capable and senior rendering engine, offering some optional security capabilities. Originated in the Ruby programming language.
 
 ```html
 <HTML>
