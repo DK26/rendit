@@ -112,8 +112,9 @@ OPTIONS:
 * Guide: <https://tera.netlify.app/docs/#templates>  
 * Version: **v1.16.0**
 * Repository: <https://github.com/Keats/tera>
+* Alternatives: `Jinja2`, `Django`, `Liquid`, `Twig`
   
-A highly advanced, capable and secure by default rendering engine that follows the OWASP Top 10 guidelines.
+A highly advanced, capable and secure by default; rendering engine that follows the OWASP Top 10 guidelines.
 A good alternative choice if you are used to template engines such as `Jinja2`, `Django`, `Liquid` or `Twig`. Originated in the Rust programming language.  
 
 ```html
@@ -130,8 +131,9 @@ A good alternative choice if you are used to template engines such as `Jinja2`, 
 * Guide: <https://handlebarsjs.com/guide/>  
 * Version: **v4.3.3**
 * Repository: <https://github.com/sunng87/handlebars-rust>
+* Alternatives: `Mustache`
   
-A most popular rendering engine that was implemented across many programming languages. Considered to be more limited compared to the other engines. Originated in the Javascript programming language.
+A highly popular rendering engine that has been implemented across many programming languages. Considered to be somewhat more limited in features compared to the other engines. Originated in the Javascript programming language.
 
 ```html
 <HTML>
@@ -147,8 +149,9 @@ A most popular rendering engine that was implemented across many programming lan
 * Guide: <https://github.com/Shopify/liquid/wiki/Liquid-for-Designers>  
 * Version: **v0.26.0**
 * Repository: <https://github.com/cobalt-org/liquid-rust>
+* Alternatives: `smarty`
   
-A highly advanced, capable and senior rendering engine, offering some optional security capabilities. Originated in the Ruby programming language.
+A highly advanced, capable and senior rendering engine, offering some optional security capabilities. A good alternative choice if you are used to the `smarty` template engine. Originated in the Ruby programming language.
 
 ```html
 <HTML>
