@@ -297,6 +297,7 @@ struct Cli {
     ///  
     /// `-v` sets logging level to INFO
     /// `-vv` sets logging level to DEBUG
+    /// `-vvv` sets logging level to TRACE
     ///
     /// WARNING: Effects CLI / STDOUT output.
     /// Use the `--output` switch if you wish to commit the rendered output to file.
@@ -366,7 +367,7 @@ fn write_to_file<P: AsRef<Path>>(content: &str, path: P) -> Result<()> {
 impl From<String> for Template {
     /// Inspect the String contents for a magic comment `<!--template engine_name-->`, and return the appropriate `Template` enum variation for rendering.
     fn from(contents: String) -> Self {
-        let re = RegexBuilder::new(r#"^.*?<!--template\s+(?P<engine>\w+)\s?-->"#)
+        let re = RegexBuilder::new(r#"<!--template\s+(?P<engine>\w+)\s?-->"#)
             .case_insensitive(true)
             .build()
             .expect("Bad regex pattern.");
@@ -600,6 +601,7 @@ fn main() -> Result<()> {
     let log_level = match args.verbose {
         1 => LevelFilter::Info,
         2 => LevelFilter::Debug,
+        3 => LevelFilter::Trace,
         _ => LevelFilter::Error,
     };
 
