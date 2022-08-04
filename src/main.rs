@@ -384,7 +384,7 @@ impl From<String> for Template {
 
             let engine = cap["engine"].to_lowercase();
 
-            log::debug!("Magic comment: `{engine}`");
+            log::debug!("Detected magic comment: `{engine}`");
 
             match engine.as_str() {
                 "tera" => Template::Tera(contents),
@@ -503,11 +503,11 @@ fn render(
 
     let template = match engine_detection {
         EngineDetection::Auto => {
-            log::debug!("Auto detecting engine");
+            log::debug!("Detection method: Automatic");
             Template::from(template_data)
         }
         EngineDetection::Force(engine) => {
-            log::debug!("Forced engine: `{engine}`");
+            log::debug!("Detection method: Manual = `{engine}`");
             match engine {
                 TemplateEngine::Tera => Template::Tera(template_data.contents),
                 TemplateEngine::Liquid => Template::Liquid(template_data.contents),
@@ -517,7 +517,7 @@ fn render(
         }
     };
 
-    log::debug!("Rendering engine: `{}`", template.get_engine());
+    log::debug!("Selected engine: `{}`", template.get_engine());
 
     let result = match template {
         Template::Tera(contents) => {
@@ -656,6 +656,7 @@ fn main() -> Result<()> {
 
             let contents = fs::read_to_string(&context_file)
                 .with_context(|| format!("Unable to load context file \"{context_file}\""))?;
+
             ContextData {
                 // context: contents.into(), // not the way to do it as some engines did not recognize the JSON structure.
                 context: serde_json::from_str(&contents).with_context(|| {

@@ -1,6 +1,6 @@
 {
     "user": {
-        "name": "FooBar",
+        "name": "FooBar\nIs nice",
         "homepage": "https://www.google.com"
     },
     "numbers": [
