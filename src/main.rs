@@ -296,7 +296,9 @@ struct Cli {
     /// Set the level of verbosity.
     ///  
     /// `-v` sets logging level to INFO
+    ///
     /// `-vv` sets logging level to DEBUG
+    ///
     /// `-vvv` sets logging level to TRACE
     ///
     /// WARNING: Effects CLI / STDOUT output.
@@ -602,7 +604,7 @@ fn main() -> Result<()> {
         1 => LevelFilter::Info,
         2 => LevelFilter::Debug,
         3 => LevelFilter::Trace,
-        _ => LevelFilter::Error,
+        _ => LevelFilter::Off,
     };
 
     TermLogger::init(

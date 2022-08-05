@@ -20,7 +20,7 @@ CLI tool for rendering templates with local JSON files as context. Supporting mu
 
 
 <details>
-<summary>Usage Help (Click to expand)</summary>
+<summary>Usage Help (click to expand)</summary>
 
 ```text
 USAGE:
@@ -81,7 +81,11 @@ OPTIONS:
     -v, --verbose
             Set the level of verbosity.
 
-            `-v` sets logging level to INFO `-vv` sets logging level to DEBUG
+            `-v` sets logging level to INFO
+
+            `-vv` sets logging level to DEBUG
+
+            `-vvv` sets logging level to TRACE
 
             WARNING: Effects CLI / STDOUT output. Use the `--output` switch if you wish to commit
             the rendered output to file. Use the `--stderr` switch to avoid including the logger
@@ -107,7 +111,7 @@ OPTIONS:
 ## Template Examples
 
 <details>
-<summary>Tera (Click to expand)</summary>
+<summary>Tera (click to expand)</summary>
 
 * Guide: <https://tera.netlify.app/docs/#templates>  
 * Version: **v1.16.0**
@@ -126,7 +130,7 @@ A good alternative choice if you are used to template engines such as `Jinja2`, 
 </details>
 
 <details>
-<summary>Handlebars (Click to expand)</summary>
+<summary>Handlebars (click to expand)</summary>
 
 * Guide: <https://handlebarsjs.com/guide/>  
 * Version: **v4.3.3**
@@ -144,7 +148,7 @@ A highly popular rendering engine that has been implemented across many programm
 </details>
 
 <details>
-<summary>Liquid (Click to expand)</summary>
+<summary>Liquid (click to expand)</summary>
 
 * Guide: <https://github.com/Shopify/liquid/wiki/Liquid-for-Designers>  
 * Version: **v0.26.0**
