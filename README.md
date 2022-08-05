@@ -6,7 +6,7 @@ CLI tool for rendering templates with local JSON files as context. Supporting mu
 
 * Renders template input either from file or standard input
 * Uses either the default or the specified context JSON file for rendering
-* Automatically Detects the right rendering engine with either a special starting comment (magic comment) `<!--template ENGINE_NAME>`  or by the template's file extension  
+* Automatically detects the right rendering engine with either a special starting comment (magic comment) `<!--template ENGINE_NAME>`  or by the template's file extension  
 * Allows you to manually decide which engine to use out of the supported engine list: `--engine-list`
 
 * Allows you to automatically open the rendered output file for preview with a default software
