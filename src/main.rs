@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use clap::Parser;
+use clap::{value_parser, Arg, ArgMatches, Parser};
 use handlebars::Handlebars;
 use path_slash::PathExt;
 // use human_panic::setup_panic;
@@ -26,7 +26,6 @@ type Contents = String;
 type EngineName = String;
 
 // TODO: 3.8.2022
-// TODO: Bonus: Updated CLI Descriptions + Description with Source Code and License
 // TODO: Build logic for template table ver1
 // TODO: Build logic for template table ver2
 // TODO: Bonus: STDIN loop
@@ -91,20 +90,20 @@ fn new_canonicalize_path_buf<P: AsRef<Path>>(path: P) -> PathBuf {
 }
 
 // Has the potential to be more correct. For the alpha and beta stages, I'll keep this function around.
-#[inline]
-fn new_full_path_buf<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
-    if path.as_ref().has_root() {
-        Ok(path.as_ref().to_owned())
-    } else {
-        let exe_dir = current_exe()
-            .context("Unable to get current executable file location")?
-            .parent()
-            .context("Unable to get current executable directory")?
-            .to_owned();
+// #[inline]
+// fn new_full_path_buf<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
+//     if path.as_ref().has_root() {
+//         Ok(path.as_ref().to_owned())
+//     } else {
+//         let exe_dir = current_exe()
+//             .context("Unable to get current executable file location")?
+//             .parent()
+//             .context("Unable to get current executable directory")?
+//             .to_owned();
 
-        Ok(exe_dir.join(path))
-    }
-}
+//         Ok(exe_dir.join(path))
+//     }
+// }
 
 // TODO: Move to an external crate, improve and with some more ideas and publish on crates.io.
 // Should behave just like a `PathBuf` and therefore should have the same methods + New security features (Restrict trait?)
@@ -209,6 +208,7 @@ impl Deref for AbsolutePath {
     }
 }
 
+/// Supported template engines
 #[derive(Clone, Copy, Debug, PartialEq, Sequence, strum_macros::Display)]
 enum TemplateEngine {
     Tera,
@@ -256,90 +256,211 @@ impl Template {
     }
 }
 
-// TODO: Roll back from CLAP Derive to CLAP Builder, as it enables more control over its formatting.
-#[derive(Parser)]
-#[clap(
-    author,
-    version,
-    about = env!("CARGO_PKG_DESCRIPTION"),
-    long_about = None
-)]
-struct Cli {
-    /// The template file to render.
-    ///  
-    /// This requires either the `<TEMPLATE NAME>.ctx.json` or the `default.ctx.json` context files, to be present in the same directory.
-    ///
-    /// [Example]
-    ///
-    ///  For the template file `my_template.html`, the automatic context file would be `my_template.ctx.json` of the same directory.
-    ///  
-    ///  If `my_template.ctx.json` is missing, `default.ctx.json` is automatically loaded instead.
-    ///  
-    ///  This behavior can be overridden by assigning the context file manually when using the `--context` option.
-    ///
-    /// [Output]
-    ///
-    ///    Providing `<TEMPLATE FILE>` automatically produces `<TEMPLATE NAME>.rendered.<extension>` unless using the `--output` option.
-    ///
-    ///    By NOT providing `<TEMPLATE FILE>`, STDIN mode is activated and will be waiting for template data stream in STDIN, printing results to STDOUT instead of writing to file.
-    #[clap(value_parser, value_name = "TEMPLATE FILE")]
-    template_file: Option<AbsolutePath>,
+fn arg_matches() -> ArgMatches {
+    let about = format!(
+        "{description}\n\n  Author: {author}\n  Source: {source}\n  License: {license}",
+        description = env!("CARGO_PKG_DESCRIPTION"),
+        author = env!("CARGO_PKG_AUTHORS"),
+        source = env!("CARGO_PKG_REPOSITORY"),
+        license = env!("CARGO_PKG_LICENSE")
+    );
 
-    /// Override automatic loading of the context file with the specified context file.
-    #[clap(value_parser, short, long = "context", value_name = "CONTEXT FILE")]
-    context_file: Option<AbsolutePath>,
+    clap::Command::new(env!("CARGO_PKG_NAME"))
+        .version(env!("CARGO_PKG_VERSION"))
+        .about(about.as_str())
+        .arg(
+            Arg::new("template_file")
+                .value_name("TEMPLATE FILE")
+                .long_help(
+r#"The template file to render.
 
-    /// Override automatic output file path with the specified file path.
-    #[clap(value_parser, short, long = "output", value_name = "OUTPUT FILE")]
-    output_file: Option<AbsolutePath>,
-
-    /// Set the level of verbosity.
-    ///  
-    /// `-v` sets logging level to INFO
-    ///
-    /// `-vv` sets logging level to DEBUG
-    ///
-    /// `-vvv` sets logging level to TRACE
-    ///
-    /// WARNING: Effects CLI / STDOUT output.
-    /// Use the `--output` switch if you wish to commit the rendered output to file.
-    /// Use the `--stderr` switch to avoid including the logger messages in the final output.
-    #[clap(short, long, action = clap::ArgAction::Count)]
-    verbose: u8,
-
-    // /Print pretty, highlighted output to the terminal.
-    // /
-    // /WARNING: CLI output cannot be used for piping as ASCII/UTF-8 is transformed.
-    // /Use `--output` switch if you wish to commit the rendered output to file.
-    // #[clap(short, long, action)]
-    // pretty: bool,
-
-    //
-    /// Open the rendered output file with a default software.
-    #[clap(short = 'O', long, action)]
-    open: bool,
-
-    /// Constantly render changes in the template with the context file for every 2 seconds.  
-    #[clap(short, long, action)]
-    watch: bool,
-
-    /// Print rendered result to STDOUT.
-    #[clap(short, long, action)]
-    stdout: bool,
-
-    /// Print rendered result to STDERR.
-    #[clap(short, long, action)]
-    stderr: bool,
-
-    /// Force rendering with the specified render engine.
-    /// Use only when there is no magic comment or a template file extension available.
-    #[clap(value_parser, short = 'e', long = "engine", value_name = "ENGINE NAME")]
-    engine: Option<TemplateEngine>,
-
-    /// Print supported engine list for the `--engine` option.
-    #[clap(long, action)]
-    engine_list: bool,
+This requires either the `<TEMPLATE NAME>.ctx.json` or the `default.ctx.json` context files, to be present in the same directory.
+               
+[Example]
+               
+For the template file `my_template.html`, the automatic context file would be `my_template.ctx.json` of the same directory.
+                 
+If `my_template.ctx.json` is missing, `default.ctx.json` is automatically loaded instead.
+                 
+This behavior can be overridden by assigning the context file manually when using the `--context` option.
+               
+[Output]
+               
+Providing `<TEMPLATE FILE>` automatically produces `<TEMPLATE NAME>.rendered.<extension>` unless using the `--output` option.
+               
+By NOT providing `<TEMPLATE FILE>`, STDIN mode is activated and will be waiting for template data stream in STDIN, printing results to STDOUT instead of writing to file."#
+                )
+                .value_parser(value_parser!(AbsolutePath))
+                .display_order(1)
+        ).arg(
+            Arg::new("context_file")
+                .value_name("CONTEXT FILE")
+                .long_help("Override automatic loading of the context file with the specified context file.")
+                .short('c')
+                .long("context")
+                .value_parser(value_parser!(AbsolutePath))
+                .display_order(2)
+        ).arg(
+            Arg::new("output_file")
+                .value_name("CONTEXT FILE")
+                .long_help("Override automatic output file path with the specified file path.")
+                .short('o')
+                .long("output")
+                .value_parser(value_parser!(AbsolutePath))
+                .display_order(3)
+        ).arg(
+            Arg::new("verbose")
+                .long_help(
+r#"Set the level of verbosity.
+      
+`-v` sets logging level to INFO
+               
+`-vv` sets logging level to DEBUG
+               
+`-vvv` sets logging level to TRACE
+               
+WARNING: Effects CLI / STDOUT output.
+Use the `--output` switch if you wish to commit the rendered output to file.
+Use the `--stderr` switch to avoid including the logger messages in the final output."#
+            )
+            .long("verbose")
+            .short('v')
+            .action(clap::ArgAction::Count)
+            .value_parser(value_parser!(u8))
+            .display_order(10)
+        ).arg(
+            Arg::new("open")
+                .long_help("Open the rendered output file with a default software.")
+                .long("open")
+                .short('O')
+                .action(clap::ArgAction::SetTrue)
+                .display_order(6)
+        ).arg(
+            Arg::new("watch")
+                .long_help("Constantly render changes in the template with the context file for every 2 seconds.")
+                .long("watch")
+                .short('w')
+                .action(clap::ArgAction::SetTrue)
+                .display_order(7)
+        ).arg(
+            Arg::new("stdout")
+                .long_help("Print rendered result to STDOUT.")
+                .long("stdout")
+                .action(clap::ArgAction::SetTrue)
+                .display_order(4)
+        ).arg(
+            Arg::new("stderr")
+                .long_help("Print rendered result to STDERR.")
+                .long("stderr")
+                .action(clap::ArgAction::SetTrue)
+                .display_order(5)
+        ).arg(
+            Arg::new("engine")
+                .value_name("ENGINE NAME")
+                .long_help(r#"Force rendering with the specified render engine.
+Use only when there is no magic comment or a template file extension available."#)
+                .long("engine")
+                .short('e')
+                .value_parser(value_parser!(TemplateEngine))
+                .display_order(8)
+        ).arg(
+            Arg::new("engine_list")
+                .long_help("Print supported engine list for the `--engine` option.")
+                .long("engine-list")
+                .action(clap::ArgAction::SetTrue)
+                .display_order(9)
+        )
+        .get_matches()
 }
+
+// #[derive(Parser)]
+// #[clap(
+//     author,
+//     version,
+//     // about = env!("CARGO_PKG_DESCRIPTION"),  // Unable to dynamically format with CLAP Derive
+//     about = "CLI tool for rendering templates with local JSON files as context. Supporting multiple template engines.
+
+//      Author: David Krasnitsky <dikaveman@gmail.com>
+//      Source: https://github.com/DK26/rendit
+//      License: MIT",
+//     long_about = None
+// )]
+// struct Cli {
+//     /// The template file to render.
+//     ///
+//     /// This requires either the `<TEMPLATE NAME>.ctx.json` or the `default.ctx.json` context files, to be present in the same directory.
+//     ///
+//     /// [Example]
+//     ///
+//     ///  For the template file `my_template.html`, the automatic context file would be `my_template.ctx.json` of the same directory.
+//     ///
+//     ///  If `my_template.ctx.json` is missing, `default.ctx.json` is automatically loaded instead.
+//     ///
+//     ///  This behavior can be overridden by assigning the context file manually when using the `--context` option.
+//     ///
+//     /// [Output]
+//     ///
+//     ///    Providing `<TEMPLATE FILE>` automatically produces `<TEMPLATE NAME>.rendered.<extension>` unless using the `--output` option.
+//     ///
+//     ///    By NOT providing `<TEMPLATE FILE>`, STDIN mode is activated and will be waiting for template data stream in STDIN, printing results to STDOUT instead of writing to file.
+//     #[clap(value_parser, value_name = "TEMPLATE FILE")]
+//     template_file: Option<AbsolutePath>,
+
+//     /// Override automatic loading of the context file with the specified context file.
+//     #[clap(value_parser, short, long = "context", value_name = "CONTEXT FILE")]
+//     context_file: Option<AbsolutePath>,
+
+//     /// Override automatic output file path with the specified file path.
+//     #[clap(value_parser, short, long = "output", value_name = "OUTPUT FILE")]
+//     output_file: Option<AbsolutePath>,
+
+//     /// Set the level of verbosity.
+//     ///
+//     /// `-v` sets logging level to INFO
+//     ///
+//     /// `-vv` sets logging level to DEBUG
+//     ///
+//     /// `-vvv` sets logging level to TRACE
+//     ///
+//     /// WARNING: Effects CLI / STDOUT output.
+//     /// Use the `--output` switch if you wish to commit the rendered output to file.
+//     /// Use the `--stderr` switch to avoid including the logger messages in the final output.
+//     #[clap(short, long, action = clap::ArgAction::Count)]
+//     verbose: u8,
+
+//     // /Print pretty, highlighted output to the terminal.
+//     // /
+//     // /WARNING: CLI output cannot be used for piping as ASCII/UTF-8 is transformed.
+//     // /Use `--output` switch if you wish to commit the rendered output to file.
+//     // #[clap(short, long, action)]
+//     // pretty: bool,
+
+//     //
+//     /// Open the rendered output file with a default software.
+//     #[clap(short = 'O', long, action)]
+//     open: bool,
+
+//     /// Constantly render changes in the template with the context file for every 2 seconds.
+//     #[clap(short, long, action)]
+//     watch: bool,
+
+//     /// Print rendered result to STDOUT.
+//     #[clap(long, action)]
+//     stdout: bool,
+
+//     /// Print rendered result to STDERR.
+//     #[clap(long, action)]
+//     stderr: bool,
+
+//     /// Force rendering with the specified render engine.
+//     /// Use only when there is no magic comment or a template file extension available.
+//     #[clap(value_parser, short = 'e', long = "engine", value_name = "ENGINE NAME")]
+//     engine: Option<TemplateEngine>,
+
+//     /// Print supported engine list for the `--engine` option.
+//     #[clap(long, action)]
+//     engine_list: bool,
+// }
 
 /// Write `content` to file `path` using BufWriter
 fn write_to_file<P: AsRef<Path>>(content: &str, path: P) -> Result<()> {
@@ -376,7 +497,10 @@ impl From<String> for Template {
 
         let mut re_caps = re.captures_iter(&contents);
 
-        if let Some(m) = re.find(&contents) {
+        // We want to find only the first one without scanning the rest of the file
+        let mut re_iter = re.find_iter(&contents);
+
+        if let Some(m) = re_iter.next() {
             let found_match = m.as_str();
 
             let contents = contents.replacen(found_match, "", 1).trim().to_owned();
@@ -475,16 +599,25 @@ struct ContextData {
 
 struct RenderedTemplate(String);
 
-enum EngineDetection {
+enum DetectionMethod {
     Auto,
     Force(TemplateEngine),
 }
 
-impl From<Option<TemplateEngine>> for EngineDetection {
+impl From<Option<TemplateEngine>> for DetectionMethod {
     fn from(te: Option<TemplateEngine>) -> Self {
         match te {
-            Some(engine) => EngineDetection::Force(engine),
-            None => EngineDetection::Auto,
+            Some(engine) => DetectionMethod::Force(engine),
+            None => DetectionMethod::Auto,
+        }
+    }
+}
+
+impl From<Option<&TemplateEngine>> for DetectionMethod {
+    fn from(te: Option<&TemplateEngine>) -> Self {
+        match te {
+            Some(engine) => DetectionMethod::Force(*engine),
+            None => DetectionMethod::Auto,
         }
     }
 }
@@ -492,7 +625,7 @@ impl From<Option<TemplateEngine>> for EngineDetection {
 fn render(
     template_data: TemplateData,
     context_data: ContextData,
-    engine_detection: EngineDetection,
+    engine_detection: DetectionMethod,
 ) -> Result<RenderedTemplate> {
     // let default_language = "html";
 
@@ -505,11 +638,11 @@ fn render(
     // };
 
     let template = match engine_detection {
-        EngineDetection::Auto => {
+        DetectionMethod::Auto => {
             log::debug!("Detection method: Automatic");
             Template::from(template_data)
         }
-        EngineDetection::Force(engine) => {
+        DetectionMethod::Force(engine) => {
             log::debug!("Detection method: Manual = `{engine}`");
             match engine {
                 TemplateEngine::Tera => Template::Tera(template_data.contents),
@@ -589,9 +722,11 @@ fn render(
 
 fn main() -> Result<()> {
     // setup_panic!();
-    let args = Cli::parse();
+    // let args = Cli::parse();
+    let arg_matches = arg_matches();
 
-    if args.engine_list {
+    // if args.engine_list {
+    if *arg_matches.get_one::<bool>("engine_list").unwrap() {
         let supported_engines = all::<TemplateEngine>().collect::<Vec<_>>();
 
         for (i, engine) in supported_engines.iter().enumerate() {
@@ -600,11 +735,22 @@ fn main() -> Result<()> {
         process::exit(0);
     }
 
-    let log_level = match args.verbose {
-        1 => LevelFilter::Info,
-        2 => LevelFilter::Debug,
-        3 => LevelFilter::Trace,
-        _ => LevelFilter::Off,
+    // let log_level = match args.verbose {
+    //     1 => LevelFilter::Info,
+    //     2 => LevelFilter::Debug,
+    //     3 => LevelFilter::Trace,
+    //     _ => LevelFilter::Off,
+    // };
+
+    let log_level = if let Some(v) = arg_matches.get_one::<u8>("verbose") {
+        match v {
+            1 => LevelFilter::Info,
+            2 => LevelFilter::Debug,
+            3 => LevelFilter::Trace,
+            _ => LevelFilter::Trace,
+        }
+    } else {
+        LevelFilter::Off
     };
 
     TermLogger::init(
@@ -618,9 +764,10 @@ fn main() -> Result<()> {
     let mut has_looped = false;
 
     'main: loop {
-        let template_file = &args.template_file;
+        // let template_file = &args.template_file;
+        let template_file_arg = arg_matches.get_one::<AbsolutePath>("template_file");
 
-        let template_data = if let Some(template_file) = &template_file {
+        let template_data = if let Some(template_file) = template_file_arg {
             log::info!("Rendering file: \"{template_file}\"");
             TemplateData {
                 contents: fs::read_to_string(&template_file)
@@ -634,7 +781,8 @@ fn main() -> Result<()> {
             }
         };
 
-        let context_file = &args.context_file;
+        // let context_file = &args.context_file;
+        let context_file_arg = arg_matches.get_one::<AbsolutePath>("context_file");
         // let context_file = if let Some(path) = &args.context_file {
         //     Some(path.canonicalize()?)
         // } else {
@@ -642,9 +790,9 @@ fn main() -> Result<()> {
         // };
 
         let context_data = {
-            let context_file = if let Some(context_file) = &context_file {
+            let context_file = if let Some(context_file) = context_file_arg {
                 context_file.to_owned()
-            } else if let Some(template_file) = &args.template_file {
+            } else if let Some(template_file) = template_file_arg {
                 let ctx_path = template_file.with_extension("ctx.json");
 
                 if ctx_path.exists() {
@@ -670,25 +818,32 @@ fn main() -> Result<()> {
             }
         };
 
-        let rendered_template = render(template_data, context_data, args.engine.into())?;
+        let rendered_template = render(
+            template_data,
+            context_data,
+            arg_matches.get_one::<TemplateEngine>("engine").into(),
+        )?;
 
-        if args.stderr {
+        // if args.stderr {
+        if *arg_matches.get_one::<bool>("stderr").unwrap() {
             eprintln!("{}", rendered_template.0);
         }
 
-        if args.stdout {
+        // if args.stdout {
+        if *arg_matches.get_one::<bool>("stdout").unwrap() {
             println!("{}", rendered_template.0);
         }
 
         // Output stages
-        if let Some(ref output_arg) = args.output_file {
+        // if let Some(ref output_arg) = args.output_file {
+        if let Some(output_arg) = arg_matches.get_one::<AbsolutePath>("output_file") {
             log::info!("Rendered output file: \"{output_arg}\"");
             write_to_file(&rendered_template.0, &output_arg)?;
-            if !has_looped && args.open {
+            if !has_looped && *arg_matches.get_one::<bool>("open").unwrap() {
                 log::info!("Opening: \"{output_arg}\"");
                 opener::open(&output_arg)?;
             }
-        } else if let Some(ref template_file) = args.template_file {
+        } else if let Some(template_file) = template_file_arg {
             let mut extension = String::from("rendered");
 
             if let Some(ext) = template_file.extension() {
@@ -703,11 +858,11 @@ fn main() -> Result<()> {
 
             log::info!("Rendered output file: \"{output_path}\"");
             write_to_file(&rendered_template.0, &output_path)?;
-            if !has_looped && args.open {
+            if !has_looped && *arg_matches.get_one::<bool>("open").unwrap() {
                 log::info!("Opening: \"{output_path}\"");
                 opener::open(&output_path)?;
             }
-        } else if !args.stdout {
+        } else if arg_matches.get_one::<bool>("stdout").is_none() {
             // let pretty_print_preconditions = [args.pretty, args.verbose > 0];
             //     if pretty_print_preconditions.iter().any(|&c| c) {
             //         pretty_print(&result, Some(template_extension))
@@ -716,7 +871,8 @@ fn main() -> Result<()> {
             //     }
             println!("{}", rendered_template.0);
         }
-        if args.watch {
+        // if args.watch {
+        if *arg_matches.get_one::<bool>("watch").unwrap() {
             // FIXME: If the context JSON is broken, the loop ends. It is better to avoid ending the program when watching.
             // FIXME: This ^ could be happening when rendering the template is self is failing.
             log::debug!("Watch mode is activated");
