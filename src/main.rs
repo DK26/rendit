@@ -285,10 +285,10 @@ If `my_template.ctx.json` is missing, `default.ctx.json` is automatically loaded
 This behavior can be overridden by assigning the context file manually when using the `--context` option.
                
 [Output]
-               
-Providing `<TEMPLATE FILE>` 
-automatically produces `<TEMPLATE NAME>.rendered.<extension>` 
-unless using the `--output` option.
+            
+Unless using the `--output` option:
+
+Providing `<TEMPLATE FILE>`, produces a `<TEMPLATE NAME>.rendered.<EXTENSION>` file.
                
 By NOT providing `<TEMPLATE FILE>`, STDIN mode is activated and will be waiting for template data stream in STDIN, printing results to STDOUT instead of writing to file."#
                 )
