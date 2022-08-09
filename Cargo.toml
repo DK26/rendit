@@ -1,7 +1,7 @@
 [package]
 name = "rendit"
 authors = ["David Krasnitsky <dikaveman@gmail.com>"]
-version = "0.1.1-alpha"
+version = "0.1.2-alpha"
 edition = "2021"
 description = "CLI tool for rendering templates with local JSON files as context. Supporting multiple template engines."
 repository = "https://github.com/DK26/rendit"
