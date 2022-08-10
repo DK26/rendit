@@ -46,37 +46,37 @@ ARGS:
 
             [Output]
 
-            Providing `<TEMPLATE FILE>` automatically produces `<TEMPLATE
-            NAME>.rendered.<extension>` unless using the `--output` option.
+            Unless using the `--output` option,
+            providing `<TEMPLATE FILE>`, produces a `<TEMPLATE NAME>.rendered.<EXTENSION>` file.
 
-            By NOT providing `<TEMPLATE FILE>`, STDIN mode is activated and will be waiting for
-            template data stream in STDIN, printing results to STDOUT instead of writing to file.
+            By NOT providing `<TEMPLATE FILE>`, STDIN mode is activated and will be waiting on
+            template data stream from STDIN, printing results to STDOUT instead of writing to file.
 
 OPTIONS:
     -c, --context <CONTEXT FILE>
-            Override automatic loading of the context file with the specified context file
+            Override automatic loading of the context file with the specified context file.
 
-    -e, --engine <ENGINE NAME>
-            Force rendering with the specified render engine. Use only when there is no magic
-            comment or a template file extension available
+    -o, --output <CONTEXT FILE>
+            Override automatic output file path with the specified file path.
 
-        --engine-list
-            Print supported engine list for the `--engine` option
+        --stdout
+            Print rendered result to STDOUT.
 
-    -h, --help
-            Print help information
-
-    -o, --output <OUTPUT FILE>
-            Override automatic output file path with the specified file path
+        --stderr
+            Print rendered result to STDERR.
 
     -O, --open
-            Open the rendered output file with a default software
+            Open the rendered output file with a default software.
 
-    -s, --stdout
-            Print rendered result to STDOUT
+    -w, --watch
+            Constantly render changes in the template with the context file for every 2 seconds.
 
-    -s, --stderr
-            Print rendered result to STDERR
+    -e, --engine <ENGINE NAME>
+            Force rendering with the specified render engine.
+            Use only when there is no magic comment or a template file extension available.
+
+        --engine-list
+            Print supported engine list for the `--engine` option.
 
     -v, --verbose
             Set the level of verbosity.
@@ -87,15 +87,15 @@ OPTIONS:
 
             `-vvv` sets logging level to TRACE
 
-            WARNING: Effects CLI / STDOUT output. Use the `--output` switch if you wish to commit
-            the rendered output to file. Use the `--stderr` switch to avoid including the logger
-            messages in the final output.
+            WARNING: Effects CLI / STDOUT output.
+            Use the `--output` switch if you wish to commit the rendered output to file.
+            Use the `--stderr` switch to avoid including the logger messages in the final output.
+
+    -h, --help
+            Print help information
 
     -V, --version
             Print version information
-
-    -w, --watch
-            Constantly render changes in the template with the context file for every 2 seconds
 ```
 
 </details>
