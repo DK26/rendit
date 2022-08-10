@@ -1,3 +1,22 @@
 {% macro type(id) %}
-Hello {{ id }}
+
+{% if id == 1 %}
+
+{% include "ext_1.html" %}
+
+{% elif id == 2 %}
+
+{% include "ext_2.html" %}
+
+{% else %}
+Unknown ID
+
+{% endif %}
+
 {% endmacro input %}
+
+{% macro hello(name) %}
+
+Welcome, {{ name }} !
+
+{% endmacro %}

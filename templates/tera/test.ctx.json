@@ -3,6 +3,7 @@
         "name": "FooBar\nIs nice",
         "homepage": "https://www.google.com"
     },
+    "inject": "<H1>BIG</H1>",
     "numbers": [
         1,
         2,

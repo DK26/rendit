@@ -5,7 +5,7 @@ use path_slash::PathExt;
 // use human_panic::setup_panic;
 use enum_iterator::{all, Sequence};
 use log::LevelFilter;
-use regex::RegexBuilder;
+use regex::{Regex, RegexBuilder};
 use simplelog::TermLogger;
 use std::{
     borrow::Borrow,
@@ -32,6 +32,33 @@ type EngineName = String;
 
 const DEFAULT_CONTEXT_FILE: &str = "default.ctx.json";
 const DEFAULT_WATCH_SLEEP_TIME: Duration = Duration::from_secs(2);
+
+/// Scan the template for reference to other templates, such as:
+/// `{% include %}`, `{% extend %}` or `{% import %}` calls
+#[inline]
+fn find_template_references<P: AsRef<Path>>(content: &str, cwd: Option<P>) -> Vec<AbsolutePath> {
+    let re = Regex::new(
+        r#"\{%\s+?(?:import|include|extend)\s+?"(?P<template>[a-zA-Z0-9.\-/\\_]+?)"\s.*?%\}"#,
+    )
+    .expect("Bad regex pattern.");
+
+    let mut buf: Vec<AbsolutePath> = Vec::new();
+
+    log::debug!("Scanning for template references...");
+
+    for cap in re.captures_iter(content) {
+        log::debug!("Detected reference: \"{}\"", &cap["template"]);
+        // TODO: Make path relative to main template
+        let path = if let Some(p) = &cwd {
+            p.as_ref().with_file_name(&cap["template"]).into()
+        } else {
+            cap["template"].into()
+        };
+
+        buf.push(path);
+    }
+    buf
+}
 
 // A simple implementation of `% touch path` (ignores existing files)
 // Inspired by: https://doc.rust-lang.org/rust-by-example/std_misc/fs.html
@@ -106,7 +133,8 @@ fn new_canonicalize_path_buf<P: AsRef<Path>>(path: P) -> PathBuf {
 // }
 
 // TODO: Move to an external crate, improve and with some more ideas and publish on crates.io.
-// Should behave just like a `PathBuf` and therefore should have the same methods + New security features (Restrict trait?)
+// TODO: `AbsolutePath` features should be implemented on `PathBuf` directly with proper traits, to avoid duplicating and interswitching between the types, making it seamless.
+// Old Note: Should behave just like a `PathBuf` and therefore should have the same methods + New security features (Restrict trait?)
 #[derive(Clone, Debug)]
 struct AbsolutePath {
     path: PathBuf,
@@ -279,18 +307,17 @@ This requires either the `<TEMPLATE NAME>.ctx.json` or the `default.ctx.json` co
 [Example]
                
 For the template file `my_template.html`, the automatic context file would be `my_template.ctx.json` of the same directory.
-                 
-If `my_template.ctx.json` is missing, `default.ctx.json` is automatically loaded instead.
-                 
-This behavior can be overridden by assigning the context file manually when using the `--context` option.
-               
-[Output]
-            
-Unless using the `--output` option:
 
-Providing `<TEMPLATE FILE>`, produces a `<TEMPLATE NAME>.rendered.<EXTENSION>` file.
+If `my_template.ctx.json` is missing, `default.ctx.json` is automatically loaded instead.
+
+This behavior can be overridden by assigning the context file manually when using the `--context` option.
+
+[Output]
+
+Unless using the `--output` option,
+providing `<TEMPLATE FILE>`, produces a `<TEMPLATE NAME>.rendered.<EXTENSION>` file.
                
-By NOT providing `<TEMPLATE FILE>`, STDIN mode is activated and will be waiting for template data stream in STDIN, printing results to STDOUT instead of writing to file."#
+By NOT providing `<TEMPLATE FILE>`, STDIN mode is activated and will be waiting on template data stream from STDIN, printing results to STDOUT instead of writing to file."#
                 )
                 .value_parser(value_parser!(AbsolutePath))
                 .display_order(1)
@@ -314,13 +341,13 @@ By NOT providing `<TEMPLATE FILE>`, STDIN mode is activated and will be waiting 
             Arg::new("verbose")
                 .long_help(
 r#"Set the level of verbosity.
-      
+
 `-v` sets logging level to INFO
-               
+
 `-vv` sets logging level to DEBUG
-               
+
 `-vvv` sets logging level to TRACE
-               
+
 WARNING: Effects CLI / STDOUT output.
 Use the `--output` switch if you wish to commit the rendered output to file.
 Use the `--stderr` switch to avoid including the logger messages in the final output."#
@@ -584,6 +611,8 @@ fn render(
     //     None => Cow::Borrowed(default_language),
     // };
 
+    let template_path = template_data.file_path;
+
     let template = match engine_detection {
         DetectionMethod::Auto => {
             log::debug!("Detection method: Automatic");
@@ -617,8 +646,51 @@ fn render(
             //     }
             // }
 
-            // TODO: Replace with `Tera::new()` and use `.render_str()` method, after detecting and loading references with `.add_raw_templates()`
-            Tera::one_off(&contents, &context, true)
+            let templates_root_file = if let Some(path) = template_path {
+                path.to_owned()
+            } else {
+                std::env::current_exe()
+                    .context("Failed to get current exe path")?
+                    .into()
+            };
+
+            let templates_home_dir = templates_root_file
+                .parent()
+                .context("Failed to get home directory")?;
+
+            let templates_home_dir_glob = templates_home_dir.join("**");
+
+            let templates_home_dir_glob = templates_home_dir_glob.join("*.*");
+
+            let templates_home_dir_glob = templates_home_dir_glob.to_string_lossy();
+
+            log::debug!("Tera templates path: {templates_home_dir_glob}");
+
+            // TODO: Better to create an instance of `Tera::default()` and have a deep scan for the templates to add only the references ones into a HashSet, than to add every file in the template's directory.
+            // let mut tera = Tera::default();
+
+            // let template_references: Vec<(AbsolutePath, Option<String>)> =
+            //     find_template_references(&contents, template_path)
+            //         .into_iter()
+            //         .map(|p| {
+            //             let file_name = p.file_name().map(|fp| fp.to_string_lossy().to_string());
+            //             (p, file_name)
+            //         })
+            //         .collect();
+
+            // tera.add_template_files(template_references)
+            //     .context("Tera failed loading partial template files")?;
+
+            let mut tera =
+                Tera::new(&templates_home_dir_glob).context("Unable to create Tera instance")?;
+
+            // TODO: Handle the case where a file may not be a `.html`
+            // TODO: Enable force-extension by the user
+            // Adds a virtual in-memory file for the main template. We need the `.html` extension to enforce HTML escaping.
+            tera.add_raw_template("__in_memory__.html", &contents)
+                .context("Tera is unable to add the main template as raw template.")?;
+
+            tera.render("__in_memory__.html", &context)
                 .context("Tera is unable to render the template.")?
         }
         Template::Handlebars(contents) => {
@@ -639,6 +711,7 @@ fn render(
             render.context("Handlebars is unable to render the template.")?
         }
         Template::Liquid(contents) => {
+            // TODO: Enable partials using `find_template_references()`
             let template = liquid::ParserBuilder::with_stdlib()
                 .build()
                 .context("Liquid is unable to build the parser.")?
@@ -661,7 +734,6 @@ fn render(
                 .render(&globals)
                 .context("Liquid is unable to render the template.")?
         }
-        // Template::Unknown(engine, _) => panic!("Unknown template engine: `{engine}`"),
         Template::Unknown(engine, _) => return Err(anyhow!("Unknown template engine: `{engine}`")),
         Template::NoEngine(raw) => raw,
     };
@@ -670,12 +742,10 @@ fn render(
 
 fn main() -> Result<()> {
     // setup_panic!();
-    // let args = Cli::parse();
     let arg_matches = arg_matches();
     let args = Args::parse(&arg_matches);
 
     if args.engine_list {
-        // if *arg_matches.get_one::<bool>("engine_list").unwrap() {
         let supported_engines = all::<TemplateEngine>().collect::<Vec<_>>();
 
         for (i, engine) in supported_engines.iter().enumerate() {
@@ -691,17 +761,6 @@ fn main() -> Result<()> {
         _ => LevelFilter::Off,
     };
 
-    // let log_level = if let Some(v) = arg_matches.get_one::<u8>("verbose") {
-    //     match v {
-    //         1 => LevelFilter::Info,
-    //         2 => LevelFilter::Debug,
-    //         3 => LevelFilter::Trace,
-    //         _ => LevelFilter::Trace,
-    //     }
-    // } else {
-    //     LevelFilter::Off
-    // };
-
     TermLogger::init(
         log_level,
         simplelog::Config::default(),
@@ -713,8 +772,6 @@ fn main() -> Result<()> {
     let mut has_looped = false;
 
     'main: loop {
-        // let template_file = &args.template_file;
-        // let template_file_arg = arg_matches.get_one::<AbsolutePath>("template_file");
         let template_file_arg = args.template_file;
 
         let template_data = if let Some(template_file) = template_file_arg {
@@ -731,14 +788,7 @@ fn main() -> Result<()> {
             }
         };
 
-        // let context_file = &args.context_file;
-        // let context_file_arg = arg_matches.get_one::<AbsolutePath>("context_file");
         let context_file_arg = args.context_file;
-        // let context_file = if let Some(path) = &args.context_file {
-        //     Some(path.canonicalize()?)
-        // } else {
-        //     None
-        // };
 
         let context_data = {
             let context_file = if let Some(context_file) = context_file_arg {
@@ -769,29 +819,21 @@ fn main() -> Result<()> {
             }
         };
 
-        let rendered_template = render(
-            template_data,
-            context_data,
-            // arg_matches.get_one::<TemplateEngine>("engine").into(),
-            args.engine.into(),
-        )?;
+        let rendered_template = render(template_data, context_data, args.engine.into())?;
 
         if args.stderr {
-            // if *arg_matches.get_one::<bool>("stderr").unwrap() {
             eprintln!("{}", rendered_template.0);
         }
 
         if args.stdout {
-            // if *arg_matches.get_one::<bool>("stdout").unwrap() {
             println!("{}", rendered_template.0);
         }
 
         // Output stages
         if let Some(output_arg) = args.output_file {
-            // if let Some(output_arg) = arg_matches.get_one::<AbsolutePath>("output_file") {
             log::info!("Rendered output file: \"{output_arg}\"");
             write_to_file(&rendered_template.0, &output_arg)?;
-            // if !has_looped && *arg_matches.get_one::<bool>("open").unwrap() {
+
             if !has_looped && args.open {
                 log::info!("Opening: \"{output_arg}\"");
                 opener::open(&output_arg)?;
@@ -811,12 +853,11 @@ fn main() -> Result<()> {
 
             log::info!("Rendered output file: \"{output_path}\"");
             write_to_file(&rendered_template.0, &output_path)?;
-            // if !has_looped && *arg_matches.get_one::<bool>("open").unwrap() {
+
             if !has_looped && args.open {
                 log::info!("Opening: \"{output_path}\"");
                 opener::open(&output_path)?;
             }
-        // } else if !arg_matches.get_one::<bool>("stdout").unwrap() {
         } else if !args.stdout {
             // let pretty_print_preconditions = [args.pretty, args.verbose > 0];
             //     if pretty_print_preconditions.iter().any(|&c| c) {
@@ -827,7 +868,6 @@ fn main() -> Result<()> {
             println!("{}", rendered_template.0);
         }
         if args.watch {
-            // if *arg_matches.get_one::<bool>("watch").unwrap() {
             // FIXME: If the context JSON is broken, the loop ends. It is better to avoid ending the program when watching.
             // FIXME: This ^ could be happening when rendering the template is self is failing.
             log::debug!("Watch mode is activated");
