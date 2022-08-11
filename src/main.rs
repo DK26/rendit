@@ -8,7 +8,7 @@ use log::LevelFilter;
 use regex::{Regex, RegexBuilder};
 use simplelog::TermLogger;
 use std::{
-    borrow::Borrow,
+    borrow::{Borrow, Cow},
     ffi::{OsStr, OsString},
     fs::{self, OpenOptions},
     io::{BufWriter, Write},
@@ -28,10 +28,10 @@ type EngineName = String;
 // TODO: Bonus: STDIN loop
 // TODO: Do not crash on errors of Template or Context files, when `--watch` is activated
 // TODO: Print only once new messages to the console during `--watch`
-// TODO: Enable usage of external templates for `include`, `extend` and `import`: [Tera](https://github.com/Keats/tera/issues/748) & [Liquid](https://github.com/leftwm/leftwm/issues/439)
+// TODO: Enable usage of external templates for `include` [Liquid](https://github.com/leftwm/leftwm/issues/439)
 
+// FIXME: `default.ctx.json` is not being searched near the template file
 const DEFAULT_CONTEXT_FILE: &str = "default.ctx.json";
-const DEFAULT_WATCH_SLEEP_TIME: Duration = Duration::from_secs(2);
 
 /// Scan the template for reference to other templates, such as:
 /// `{% include %}`, `{% extend %}` or `{% import %}` calls
@@ -338,6 +338,56 @@ By NOT providing `<TEMPLATE FILE>`, STDIN mode is activated and will be waiting 
                 .value_parser(value_parser!(AbsolutePath))
                 .display_order(3)
         ).arg(
+            Arg::new("stdout")
+                .long_help("Print rendered result to STDOUT.")
+                .long("stdout")
+                .action(clap::ArgAction::SetTrue)
+                .display_order(4)
+        ).arg(
+            Arg::new("stderr")
+                .long_help("Print rendered result to STDERR.")
+                .long("stderr")
+                .action(clap::ArgAction::SetTrue)
+                .display_order(5)
+        ).arg(
+            Arg::new("open")
+                .long_help("Open the rendered output file with a default software.")
+                .long("open")
+                .short('O')
+                .action(clap::ArgAction::SetTrue)
+                .display_order(6)
+        ).arg(
+            Arg::new("watch")
+                .long_help("Constantly render changes in the template with the context file every 2 seconds by default.")
+                .long("watch")
+                .short('w')
+                .value_name("SECONDS")
+                .default_missing_value("2")
+                .value_parser(value_parser!(u64))
+                .display_order(7)
+        ).arg(
+            Arg::new("engine")
+                .value_name("ENGINE NAME")
+                .long_help(r#"Force rendering with the specified render engine.
+Use only when there is no magic comment or a template file extension available."#)
+                .long("engine")
+                .short('e')
+                .value_parser(value_parser!(TemplateEngine))
+                .display_order(8)
+        ).arg(
+            Arg::new("engine_list")
+                .long_help("Print supported engine list for the `--engine` option.")
+                .long("engine-list")
+                .action(clap::ArgAction::SetTrue)
+                .display_order(9)
+        ).arg(
+            Arg::new("extension")
+                .value_name("EXTENSION")
+                .long_help("Force the underlying template engine to treat the template data as if it is a file of the given extension. This may affect escaping of special characters.")
+                .long("ext")
+                .value_parser(value_parser!(String))
+                .display_order(10)
+        ).arg(
             Arg::new("verbose")
                 .long_help(
 r#"Set the level of verbosity.
@@ -356,48 +406,7 @@ Use the `--stderr` switch to avoid including the logger messages in the final ou
             .short('v')
             .action(clap::ArgAction::Count)
             .value_parser(value_parser!(u8))
-            .display_order(10)
-        ).arg(
-            Arg::new("open")
-                .long_help("Open the rendered output file with a default software.")
-                .long("open")
-                .short('O')
-                .action(clap::ArgAction::SetTrue)
-                .display_order(6)
-        ).arg(
-            Arg::new("watch")
-                .long_help("Constantly render changes in the template with the context file for every 2 seconds.")
-                .long("watch")
-                .short('w')
-                .action(clap::ArgAction::SetTrue)
-                .display_order(7)
-        ).arg(
-            Arg::new("stdout")
-                .long_help("Print rendered result to STDOUT.")
-                .long("stdout")
-                .action(clap::ArgAction::SetTrue)
-                .display_order(4)
-        ).arg(
-            Arg::new("stderr")
-                .long_help("Print rendered result to STDERR.")
-                .long("stderr")
-                .action(clap::ArgAction::SetTrue)
-                .display_order(5)
-        ).arg(
-            Arg::new("engine")
-                .value_name("ENGINE NAME")
-                .long_help(r#"Force rendering with the specified render engine.
-Use only when there is no magic comment or a template file extension available."#)
-                .long("engine")
-                .short('e')
-                .value_parser(value_parser!(TemplateEngine))
-                .display_order(8)
-        ).arg(
-            Arg::new("engine_list")
-                .long_help("Print supported engine list for the `--engine` option.")
-                .long("engine-list")
-                .action(clap::ArgAction::SetTrue)
-                .display_order(9)
+            .display_order(11)
         )
         .get_matches()
 }
@@ -408,11 +417,12 @@ struct Args<'arg_matches> {
     output_file: Option<&'arg_matches AbsolutePath>,
     verbose: u8,
     open: bool,
-    watch: bool,
+    watch: Option<&'arg_matches u64>,
     stdout: bool,
     stderr: bool,
     engine: Option<&'arg_matches TemplateEngine>,
     engine_list: bool,
+    extension: Option<&'arg_matches String>,
 }
 
 impl<'arg_matches> Args<'arg_matches> {
@@ -427,11 +437,12 @@ impl<'arg_matches> Args<'arg_matches> {
             output_file: arg_matches.get_one::<AbsolutePath>("output_file"),
             verbose: *arg_matches.get_one::<u8>("verbose").expect(err_msg),
             open: *arg_matches.get_one::<bool>("open").expect(err_msg),
-            watch: *arg_matches.get_one::<bool>("watch").expect(err_msg),
+            watch: arg_matches.get_one::<u64>("watch"),
             stdout: *arg_matches.get_one::<bool>("stdout").expect(err_msg),
             stderr: *arg_matches.get_one::<bool>("stderr").expect(err_msg),
             engine: arg_matches.get_one::<TemplateEngine>("engine"),
             engine_list: *arg_matches.get_one::<bool>("engine_list").expect(err_msg),
+            extension: arg_matches.get_one::<String>("extension"),
         }
     }
 }
@@ -596,10 +607,25 @@ impl From<Option<&TemplateEngine>> for DetectionMethod {
     }
 }
 
+enum TemplateExtension {
+    Auto,
+    Force(String),
+}
+
+impl From<Option<&String>> for TemplateExtension {
+    fn from(s: Option<&String>) -> Self {
+        match s {
+            Some(ext) => TemplateExtension::Force(ext.to_owned()),
+            None => TemplateExtension::Auto,
+        }
+    }
+}
+
 fn render(
     template_data: TemplateData,
     context_data: ContextData,
     engine_detection: DetectionMethod,
+    template_extension: TemplateExtension,
 ) -> Result<RenderedTemplate> {
     // let default_language = "html";
 
@@ -684,13 +710,27 @@ fn render(
             let mut tera =
                 Tera::new(&templates_home_dir_glob).context("Unable to create Tera instance")?;
 
-            // TODO: Handle the case where a file may not be a `.html`
-            // TODO: Enable force-extension by the user
+            // Force extension or auto detect (default `.html`)
+            let template_type = if let TemplateExtension::Force(ext) = template_extension {
+                log::debug!("Tera: Forcing extension \"{ext}\"");
+                Cow::Owned(ext)
+            } else if let Some(path) = template_path {
+                match path.extension() {
+                    Some(ext) => ext.to_string_lossy(),
+                    None => Cow::Borrowed("html"),
+                }
+            } else {
+                Cow::Borrowed("html")
+            };
+
+            log::debug!("Tera: Using extension \"{template_type}\"");
+            let in_memory_template = format!("__in_memory__.{}", template_type);
+
             // Adds a virtual in-memory file for the main template. We need the `.html` extension to enforce HTML escaping.
-            tera.add_raw_template("__in_memory__.html", &contents)
+            tera.add_raw_template(&in_memory_template, &contents)
                 .context("Tera is unable to add the main template as raw template.")?;
 
-            tera.render("__in_memory__.html", &context)
+            tera.render(&in_memory_template, &context)
                 .context("Tera is unable to render the template.")?
         }
         Template::Handlebars(contents) => {
@@ -819,7 +859,12 @@ fn main() -> Result<()> {
             }
         };
 
-        let rendered_template = render(template_data, context_data, args.engine.into())?;
+        let rendered_template = render(
+            template_data,
+            context_data,
+            args.engine.into(),
+            args.extension.into(),
+        )?;
 
         if args.stderr {
             eprintln!("{}", rendered_template.0);
@@ -867,11 +912,11 @@ fn main() -> Result<()> {
             //     }
             println!("{}", rendered_template.0);
         }
-        if args.watch {
+        if let Some(sleep_time) = args.watch {
             // FIXME: If the context JSON is broken, the loop ends. It is better to avoid ending the program when watching.
             // FIXME: This ^ could be happening when rendering the template is self is failing.
-            log::debug!("Watch mode is activated");
-            thread::sleep(DEFAULT_WATCH_SLEEP_TIME);
+            log::debug!("Watch mode is activated: Rendering every {sleep_time} seconds");
+            thread::sleep(Duration::from_secs(*sleep_time));
             has_looped = true;
         } else {
             break 'main;

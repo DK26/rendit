@@ -1,7 +1,7 @@
 [package]
 name = "rendit"
 authors = ["David Krasnitsky <dikaveman@gmail.com>"]
-version = "0.1.2-alpha"
+version = "0.1.3-alpha"
 edition = "2021"
 description = "CLI tool for rendering templates with local JSON files as context. Supporting multiple template engines."
 repository = "https://github.com/DK26/rendit"
@@ -33,3 +33,5 @@ codegen-units = 1
 incremental = true
 lto = true
 opt-level = 'z' # Optimize for size
+
+# `cargo build --target=i686-pc-windows-msvc --release`
