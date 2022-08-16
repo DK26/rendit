@@ -130,7 +130,7 @@ OPTIONS:
 <summary>Tera (click to expand)</summary>
 
 * Guide: <https://tera.netlify.app/docs/#templates>  
-* Version: **v1.16.0**
+* Version: **v1.17.0**
 * Repository: <https://github.com/Keats/tera>
 * Alternatives: `Jinja2`, `Django`, `Liquid`, `Twig`
   
