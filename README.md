@@ -4,6 +4,12 @@
 
 CLI tool for rendering templates with local JSON files as context. Supporting multiple template engines.
 
+## WIP Status
+
+For now, you can download an [alpha release](https://github.com/DK26/rendit/releases) version and play around with it:
+
+<https://github.com/DK26/rendit/releases>
+
 ## Features
 
 * Renders template input either from file or standard input
