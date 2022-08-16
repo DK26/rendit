@@ -8,7 +8,11 @@ CLI tool for rendering templates with local JSON files as context. Supporting mu
 
 For now, you can download an [alpha release](https://github.com/DK26/rendit/releases) version and play around with it:
 
-<https://github.com/DK26/rendit/releases>
+[Download Alpha v0.1.3](https://github.com/DK26/rendit/releases/download/v0.1.3-alpha/rendit-alpha-v.0.1.3-windows-i686.7z)
+
+### All Releases
+
+<https://github.com/DK26/rendit/releases> 
 
 ## Features
 

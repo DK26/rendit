@@ -608,6 +608,7 @@ fn stdin_read() -> Result<String> {
     for line in lines {
         let l = line.context("Failed to read STDIN line")?;
         result.push_str(&l);
+        result.push('\r');
         result.push('\n');
     }
 
