@@ -3,7 +3,7 @@ name = "rendit"
 authors = ["David Krasnitsky <dikaveman@gmail.com>"]
 version = "0.1.3-alpha"
 edition = "2021"
-description = "CLI tool for rendering templates with local JSON files as context. Supporting multiple template engines."
+description = "CLI tool for rendering `Tera`, `Liquid` or `Handlebars` templates by using local JSON files for context."
 repository = "https://github.com/DK26/rendit"
 license = "MIT"
 
