@@ -26,8 +26,6 @@ type EngineName = String;
 
 // TODO: 9.8.2022
 // TODO: Bonus: STDIN loop
-// TODO: Do not crash on errors of Template or Context files, when `--watch` is activated
-// TODO: Print only once new messages to the console during `--watch`
 // TODO: Enable usage of external templates for `include` [Liquid](https://github.com/leftwm/leftwm/issues/439)
 
 const DEFAULT_CONTEXT_FILE: &str = "default.ctx.json";
@@ -862,7 +860,9 @@ fn main() -> Result<()> {
 
     let mut has_looped = false;
 
-    'main: loop {
+    let mut last_error: Option<anyhow::Error> = None;
+
+    'watch: loop {
         let template_file_arg = args.template_file.as_ref();
 
         let template_data = if let Some(template_file) = template_file_arg {
@@ -914,19 +914,56 @@ fn main() -> Result<()> {
 
             ContextData {
                 // context: contents.into(), // not the way to do it as some engines did not recognize the JSON structure.
-                context: serde_json::from_str(&contents).with_context(|| {
+                context: match serde_json::from_str(&contents).with_context(|| {
                     format!("Unable to parse JSON context from file \"{context_file}\"")
-                })?,
+                }) {
+                    Ok(ctx) => ctx,
+                    Err(e) => match args.watch {
+                        Some(secs) => {
+                            if let Some(ref le) = last_error {
+                                if format!("{le:#}") == format!("{e:#}") {
+                                    thread::sleep(Duration::from_secs(secs));
+                                    continue 'watch;
+                                }
+                            };
+                            eprintln!("{:?}", e);
+                            last_error = Some(e);
+
+                            thread::sleep(Duration::from_secs(secs));
+                            continue 'watch;
+                        }
+                        None => return Err(e),
+                    },
+                },
                 file_path: context_file,
             }
         };
 
-        let rendered_template = render(
+        let rendered_template = match render(
             template_data,
             context_data,
             args.engine.into(),
             args.extension.as_ref().into(),
-        )?;
+        ) {
+            Ok(r) => r,
+            Err(e) => match args.watch {
+                Some(secs) => {
+                    if let Some(ref le) = last_error {
+                        if format!("{le:#}") == format!("{e:#}") {
+                            thread::sleep(Duration::from_secs(secs));
+                            continue 'watch;
+                        }
+                    };
+                    eprintln!("{:?}", e);
+                    last_error = Some(e);
+
+                    thread::sleep(Duration::from_secs(secs));
+                    continue 'watch;
+                }
+
+                None => return Err(e),
+            },
+        };
 
         if args.stderr {
             eprintln!("{}", rendered_template.0);
@@ -975,13 +1012,11 @@ fn main() -> Result<()> {
             println!("{}", rendered_template.0);
         }
         if let Some(sleep_time) = args.watch {
-            // FIXME: If the context JSON is broken, the loop ends. It is better to avoid ending the program when watching.
-            // FIXME: This ^ could be happening when rendering the template is self is failing.
             log::debug!("Watch mode is activated: Rendering every {sleep_time} seconds");
             thread::sleep(Duration::from_secs(sleep_time));
             has_looped = true;
         } else {
-            break 'main;
+            break 'watch;
         }
     }
     Ok(())
