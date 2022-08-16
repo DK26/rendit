@@ -1,5 +1,7 @@
 ![render-template](assets/logo.gif)
 
+# rendit (WIP)
+
 CLI tool for rendering templates with local JSON files as context. Supporting multiple template engines.
 
 ## Features
