@@ -1,10 +1,10 @@
-# rendit (WIP)
+# rendit (🚧WIP🚧)
 
 ![render-template](assets/logo.gif)
 
 CLI tool for rendering templates with local JSON files as context. Supporting multiple template engines.
 
-## WIP Status
+## 🚧WIP Status🚧
 
 For now, you can download an [alpha release](https://github.com/DK26/rendit/releases) version and play around with it:
 
