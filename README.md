@@ -12,15 +12,15 @@ For now, you can download an [alpha release](https://github.com/DK26/rendit/rele
 
 ## Features
 
-* Renders template input either from file or standard input
-* Uses either the default or the specified context JSON file for rendering
-* Automatically detects the right rendering engine with either a special starting comment (magic comment) `<!--template ENGINE_NAME>`  or by the template's file extension  
-* Allows you to manually decide which engine to use out of the supported engine list: `--engine-list`
+* Renders template input either from file or standard input 🚧
+* Uses either the default or the specified context JSON file for rendering ✅
+* Automatically detects the right rendering engine with either a special starting comment (magic comment) `<!--template ENGINE_NAME>`  or by the template's file extension  ✅
+* Allows you to manually decide which engine to use out of the supported engine list: `--engine-list` ✅
 
-* Allows you to automatically open the rendered output file for preview with a default software
-* Allows you to watch constantly for changes in both the template and its context file
-* Built with pipeline support
-* Supports splitting output between STDOUT, STDERR and output file
+* Allows you to automatically open the rendered output file for preview with a default software ✅
+* Allows you to watch constantly for changes in both the template and its context file ✅
+* Built with pipeline support 🚧
+* Supports splitting output between STDOUT, STDERR and output file ✅
 
 ## Commandline Usage
 
@@ -147,7 +147,7 @@ A good alternative choice if you are used to template engines such as `Jinja2`, 
 
 ```html
 <HTML>
-    WIP
+    🚧WIP🚧
 </HTML>
 ```
 
@@ -165,7 +165,7 @@ A highly popular rendering engine that has been implemented across many programm
 
 ```html
 <HTML>
-    WIP
+    🚧WIP🚧
 </HTML>
 ```
 
@@ -183,7 +183,7 @@ A highly advanced, capable and senior rendering engine, offering some optional s
 
 ```html
 <HTML>
-    WIP
+    🚧WIP🚧
 </HTML>
 ```
 
