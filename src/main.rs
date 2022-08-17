@@ -316,8 +316,8 @@ impl Args {
                     .long_help(
 r#"The template file to render.
     
-Unless using the `--context <CONTEXT FILE>`option, 
-this requires either the `<TEMPLATE NAME>.ctx.json` or the `default.ctx.json` context files to be present in the template's directory.
+Unless using the `--context <CONTEXT FILE>`option, this requires either the 
+`<TEMPLATE NAME>.ctx.json` or the `default.ctx.json` context files to be present in the template's directory.
 
 [Example]
 
@@ -331,12 +331,11 @@ If `my_template.ctx.json` is missing, `default.ctx.json` will be loaded automati
 ├── default.ctx.json
 └── my_template.html
 
-If `default.ctx.json` is missing in the template directory, it will be loaded automatically from the current working directory.
+If `default.ctx.json` is missing from the template directory, it will be loaded automatically from the current working directory, instead.
 
 [Output]
     
-Unless using the `--output <OUTPUT FILE>` option,
-providing `<TEMPLATE FILE>`, produces a `<TEMPLATE NAME>.rendered.<EXTENSION>` file by default.
+Unless using the `--output <OUTPUT FILE>` option, providing `<TEMPLATE FILE>`, produces a `<TEMPLATE NAME>.rendered.<EXTENSION>` file by default.
 
 .
 ├── my_template.html
