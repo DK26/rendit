@@ -15,13 +15,14 @@ use std::{
     ops::Deref,
     path::{Path, PathBuf},
     process,
+    rc::Rc,
     str::FromStr,
     thread,
     time::Duration,
 };
 use tera::Tera;
 
-type Contents = String;
+type Contents = Rc<String>;
 type EngineName = String;
 
 // TODO: 9.8.2022
@@ -145,6 +146,13 @@ impl AbsolutePath {
     }
 }
 
+impl AsRef<Path> for AbsolutePath {
+    #[inline]
+    fn as_ref(&self) -> &Path {
+        self.path.as_ref()
+    }
+}
+
 impl<T: ?Sized + AsRef<OsStr>> From<&T> for AbsolutePath {
     /// Converts a borrowed [`OsStr`] to a [`AbsolutePath`].
     ///
@@ -197,12 +205,12 @@ impl std::fmt::Display for AbsolutePath {
     }
 }
 
-impl AsRef<Path> for AbsolutePath {
-    #[inline]
-    fn as_ref(&self) -> &Path {
-        self.path.as_ref()
-    }
-}
+// impl AsRef<Path> for &AbsolutePath {
+//     #[inline]
+//     fn as_ref(&self) -> &Path {
+//         self.path.as_ref()
+//     }
+// }
 
 impl AsRef<PathBuf> for AbsolutePath {
     #[inline]
@@ -498,6 +506,31 @@ Use the `--stderr` switch to avoid including the logger messages in the final ou
 //     }
 // }
 
+// FIXME: Using `.html.tera` extension, doesn't produce `.html` rendered output
+// struct TemplateFile<'path> {
+//     path: Rc<PathBuf>,
+//     parts: TemplateParts<'path>,
+// }
+// struct TemplateParts<'path> {
+//     name: Cow<'path, str>,
+//     extension: Option<&'path OsStr>,
+//     kind: Option<TemplateEngine>,
+// }
+// impl<'path> From<PathBuf> for TemplateFile<'path> {
+//     fn from(path: PathBuf) -> Self {
+//         let path = Rc::new(path);
+//         let s =
+//         TemplateFile {
+//             path: path.clone(),
+//             parts: TemplateParts {
+//                 name: path.to_string_lossy(),
+//                 extension: path.as_path().extension(),
+//                 kind: (),
+//             },
+//         }
+//     }
+// }
+
 /// Write `content` to file `path` using BufWriter
 fn write_to_file<P: AsRef<Path>>(content: &str, path: P) -> Result<()> {
     let file = OpenOptions::new()
@@ -523,23 +556,23 @@ fn write_to_file<P: AsRef<Path>>(content: &str, path: P) -> Result<()> {
     Ok(())
 }
 
-impl From<String> for Template {
+impl From<&str> for Template {
     /// Inspect the String contents for a magic comment `<!--template engine_name-->`, and return the appropriate `Template` enum variation for rendering.
-    fn from(contents: String) -> Self {
+    fn from(contents: &str) -> Self {
         let re = RegexBuilder::new(r#"<!--template\s+(?P<engine>\w+)\s?-->"#)
             .case_insensitive(true)
             .build()
             .expect("Bad regex pattern.");
 
-        let mut re_caps = re.captures_iter(&contents);
+        let mut re_caps = re.captures_iter(contents);
 
         // We want to find only the first one without scanning the rest of the file
-        let mut re_iter = re.find_iter(&contents);
+        let mut re_iter = re.find_iter(contents);
 
         if let Some(m) = re_iter.next() {
             let found_match = m.as_str();
 
-            let contents = contents.replacen(found_match, "", 1).trim().to_owned();
+            let contents = Rc::new(contents.replacen(found_match, "", 1).trim().to_owned());
 
             let cap = re_caps
                 .next()
@@ -556,35 +589,38 @@ impl From<String> for Template {
                 unknown_engine => Template::Unknown(unknown_engine.to_owned(), contents),
             }
         } else {
-            Template::NoEngine(contents)
+            Template::NoEngine(Rc::new(contents.to_owned()))
         }
     }
 }
 
-impl<'arg> From<TemplateData<'arg>> for Template {
+impl<'arg> From<&TemplateData<'arg>> for Template {
     /// Loads a template file into a Template enum type.
     /// Decides on the engine type by first inspecting the file extension (`.tera`, `.hbs` or `.liq`).
     /// If no special extension is provided then the contents of the template are inspected for the magic comment `<!--TEMPLATE engine_name-->`.
     ///
     /// Engine Names: `tera`, `handlebars` or `hbs`, `liquid` or `liq`
-    fn from(td: TemplateData) -> Self {
+    fn from(td: &TemplateData) -> Self {
         // Checking for template file extension to determine the template engine.
         // Notice the early returns.
-        if let Some(template_file) = td.file_path {
-            if let Some(extension) = template_file.extension() {
-                let file_extension = &*extension.to_string_lossy();
+        if let Some(ref template_file) = td.file_path {
+            // if let Some(extension) = template_file.extension() {
+            if let Some(ref extension) = template_file.parts.extension {
+                // let file_extension = &*extension.to_string_lossy();
+                let file_extension = extension.as_str();
 
                 // FIXME: Using `.html.tera` extension, doesn't produce `.html` rendered output
+                let contents = td.contents.clone();
                 match file_extension {
-                    "tera" => return Template::Tera(td.contents),
-                    "hbs" => return Template::Handlebars(td.contents),
-                    "liq" => return Template::Liquid(td.contents),
+                    "tera" => return Template::Tera(contents),
+                    "hbs" => return Template::Handlebars(contents),
+                    "liq" => return Template::Liquid(contents),
                     _ => {} // ignore unknown extensions
                 };
             }
         }
         // Scan template contents for the magic comment to return the proper Template kind.
-        td.contents.into()
+        (*td.contents.as_str()).into()
     }
 }
 
@@ -623,9 +659,71 @@ fn stdin_read() -> Result<String> {
     Ok(result)
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum RenditError {
+    #[error("Path must not be empty or root.")]
+    IllegalPath,
+}
+
+struct TemplateFile<'path> {
+    path: Rc<&'path Path>,
+    parts: FileParts,
+}
+
+impl<'path> TryFrom<&'path Path> for TemplateFile<'path> {
+    type Error = RenditError;
+
+    fn try_from(path: &'path Path) -> Result<Self, Self::Error> {
+        let path = Rc::new(path);
+        let file = TemplateFile {
+            path: path.clone(),
+            parts: FileParts::try_from(*path)?,
+        };
+        Ok(file)
+    }
+}
+
+struct FileParts {
+    name: String,
+    kind: Option<String>,
+    extension: Option<String>,
+}
+
+impl TryFrom<&Path> for FileParts {
+    type Error = RenditError;
+
+    fn try_from(pb: &Path) -> Result<Self, Self::Error> {
+        let path_string = pb
+            .file_name()
+            .ok_or(RenditError::IllegalPath)?
+            .to_string_lossy();
+        let parts: Vec<&str> = path_string.split_terminator('.').collect();
+        let res = match parts.len() {
+            3 => FileParts {
+                name: parts[0].to_owned(),
+                kind: Some(parts[1].to_owned()),
+                extension: Some(parts[2].to_owned()),
+            },
+            2 => FileParts {
+                name: parts[0].to_owned(),
+                kind: None,
+                extension: Some(parts[1].to_owned()),
+            },
+            1 => FileParts {
+                name: parts[0].to_owned(),
+                kind: None,
+                extension: None,
+            },
+            _ => return Err(RenditError::IllegalPath),
+        };
+        Ok(res)
+    }
+}
+
 struct TemplateData<'a> {
-    contents: String,
-    file_path: Option<&'a AbsolutePath>,
+    contents: Rc<String>,
+    // file_path: Option<&'a AbsolutePath>,
+    file_path: Option<TemplateFile<'a>>,
 }
 
 // #[allow(unused)]
@@ -634,7 +732,12 @@ struct ContextData {
     file_path: AbsolutePath,
 }
 
-struct RenderedTemplate(String);
+struct RenderedTemplate(Rc<String>);
+// struct RenderedTemplate(String);
+// enum RenderResult<'contents> {
+//     Processed(RenderedTemplate),
+//     Raw(&'contents str),
+// }
 
 enum DetectionMethod {
     Auto,
@@ -673,12 +776,13 @@ impl<'a> From<Option<&'a String>> for TemplateExtension<'a> {
     }
 }
 
-fn render(
-    template_data: TemplateData,
-    context_data: ContextData,
+fn render<'a>(
+    template_data: &'a TemplateData,
+    context_data: &'a ContextData,
     engine_detection: DetectionMethod,
     template_extension: TemplateExtension,
 ) -> Result<RenderedTemplate> {
+    // ) -> Result<RenderedTemplate<'a>> {
     // let default_language = "html";
 
     // let template_language = &*match template_data.file_path {
@@ -689,7 +793,7 @@ fn render(
     //     None => Cow::Borrowed(default_language),
     // };
 
-    let template_path = template_data.file_path;
+    // let template_path = template_data.file_path.clone();
 
     let template = match engine_detection {
         DetectionMethod::Auto => {
@@ -698,11 +802,12 @@ fn render(
         }
         DetectionMethod::Force(engine) => {
             log::debug!("Detection method: Manual = `{engine}`");
+            let contents = template_data.contents.clone();
             match engine {
-                TemplateEngine::Tera => Template::Tera(template_data.contents),
-                TemplateEngine::Liquid => Template::Liquid(template_data.contents),
-                TemplateEngine::Handlebars => Template::Handlebars(template_data.contents),
-                TemplateEngine::None => Template::NoEngine(template_data.contents),
+                TemplateEngine::Tera => Template::Tera(contents),
+                TemplateEngine::Liquid => Template::Liquid(contents),
+                TemplateEngine::Handlebars => Template::Handlebars(contents),
+                TemplateEngine::None => Template::NoEngine(contents),
             }
         }
     };
@@ -711,7 +816,7 @@ fn render(
 
     let result = match template {
         Template::Tera(contents) => {
-            let context = tera::Context::from_value(context_data.context)
+            let context = tera::Context::from_value(context_data.context.clone())
                 .context("Tera rejected Context object.")?;
 
             // match Tera::one_off(&contents, &context, true) {
@@ -724,12 +829,13 @@ fn render(
             //     }
             // }
 
-            let templates_root_file = if let Some(path) = template_path {
-                path.to_owned()
+            let templates_root_file = if let Some(ref template_file) = template_data.file_path {
+                Cow::Borrowed(*template_file.path)
             } else {
-                std::env::current_exe()
+                let abs_path: AbsolutePath = std::env::current_exe()
                     .context("Failed to get current exe path")?
-                    .into()
+                    .into();
+                Cow::Owned(abs_path.into_inner())
             };
 
             let templates_home_dir = templates_root_file
@@ -766,9 +872,13 @@ fn render(
             let template_type = if let TemplateExtension::Force(ext) = template_extension {
                 log::debug!("Tera: Forcing extension \"{ext}\"");
                 Cow::Borrowed(ext)
-            } else if let Some(path) = template_path {
-                match path.extension() {
-                    Some(ext) => ext.to_string_lossy(),
+            } else if let Some(ref path) = template_data.file_path {
+                // match path.extension() {
+                //     Some(ext) => ext.to_string_lossy(),
+                //     None => Cow::Borrowed("html"),
+                // }
+                match path.parts.extension {
+                    Some(ref ext) => Cow::Borrowed(ext.as_str()),
                     None => Cow::Borrowed("html"),
                 }
             } else {
@@ -782,8 +892,11 @@ fn render(
             tera.add_raw_template(&in_memory_template, &contents)
                 .context("Tera is unable to add the main template as raw template.")?;
 
-            tera.render(&in_memory_template, &context)
-                .context("Tera is unable to render the template.")?
+            let rendered = tera
+                .render(&in_memory_template, &context)
+                .context("Tera is unable to render the template.")?;
+
+            Rc::new(rendered)
         }
         Template::Handlebars(contents) => {
             let handlebars = Handlebars::new();
@@ -800,7 +913,9 @@ fn render(
             //         return Err(anyhow::Error::new(e).context("Unable to render template."));
             //     }
             // }
-            render.context("Handlebars is unable to render the template.")?
+            let rendered = render.context("Handlebars is unable to render the template.")?;
+
+            Rc::new(rendered)
         }
         Template::Liquid(contents) => {
             // TODO: Enable partials using `find_template_references()`
@@ -822,9 +937,11 @@ fn render(
 
             let globals = liquid::object!(&context_data.context);
 
-            template
+            let rendered = template
                 .render(&globals)
-                .context("Liquid is unable to render the template.")?
+                .context("Liquid is unable to render the template.")?;
+
+            Rc::new(rendered)
         }
         Template::Unknown(engine, _) => return Err(anyhow!("Unknown template engine: `{engine}`")),
         Template::NoEngine(raw) => raw,
@@ -872,14 +989,21 @@ fn main() -> Result<()> {
 
             // File Mode
             TemplateData {
-                contents: fs::read_to_string(&template_file)
-                    .with_context(|| format!("Unable to load template file \"{template_file}\""))?,
-                file_path: Some(template_file),
+                contents: {
+                    let contents = fs::read_to_string(&template_file).with_context(|| {
+                        format!("Unable to load template file \"{template_file}\"")
+                    })?;
+                    Rc::new(contents)
+                },
+                file_path: {
+                    let path: &Path = template_file.as_ref();
+                    Some(path.try_into()?)
+                },
             }
         } else {
             // STDIN Mode
             TemplateData {
-                contents: stdin_read()?,
+                contents: Rc::new(stdin_read()?),
                 file_path: None,
             }
         };
@@ -942,8 +1066,8 @@ fn main() -> Result<()> {
         };
 
         let rendered_template = match render(
-            template_data,
-            context_data,
+            &template_data,
+            &context_data,
             args.engine.into(),
             args.extension.as_ref().into(),
         ) {
