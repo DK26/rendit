@@ -27,6 +27,7 @@ type EngineName = String;
 // TODO: 9.8.2022
 // TODO: Bonus: STDIN loop
 // TODO: Enable usage of external templates for `include` [Liquid](https://github.com/leftwm/leftwm/issues/439)
+// TODO: Logic for printing errors within `--watch`, should apply only when `.ctx.json` or template are changing. Maybe we should loop just when changes are detected while it checks for changes every 2 seconds by default.
 
 const DEFAULT_CONTEXT_FILE: &str = "default.ctx.json";
 
