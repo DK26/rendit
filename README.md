@@ -30,7 +30,6 @@ For now, you can download an [alpha release](https://github.com/DK26/rendit/rele
 
 <!--Examples TBD-->
 
-
 <details>
 <summary>Usage Help (click to expand)</summary>
 
@@ -42,8 +41,9 @@ ARGS:
     <TEMPLATE FILE>
             The template file to render.
 
-            This requires either the `<TEMPLATE NAME>.ctx.json` or the `default.ctx.json` context
-            files to be present in the template's directory.
+            Unless using the `--context <CONTEXT FILE>`option, this requires either the
+            `<TEMPLATE NAME>.ctx.json` or the `default.ctx.json` context files to be present in the
+            template's directory.
 
             [Example]
 
@@ -51,21 +51,20 @@ ARGS:
             ├── my_template.ctx.json
             └── my_template.html
 
-            If `my_template.ctx.json` is missing, `default.ctx.json` is automatically loaded
-            instead.
+            If `my_template.ctx.json` is missing, `default.ctx.json` will be loaded automatically
+            from the template's directory.
 
             .
             ├── default.ctx.json
             └── my_template.html
 
-            This behavior can be overridden by assigning the context file directly, using the
-            `--context <CONTEXT FILE>` option.
+            If `default.ctx.json` is missing from the template directory, it will be loaded
+            automatically from the current working directory, instead.
 
             [Output]
 
-            Unless using the `--output <OUTPUT FILE>` option,
-            providing `<TEMPLATE FILE>`, produces a `<TEMPLATE NAME>.rendered.<EXTENSION>` file by
-            default.
+            Unless using the `--output <OUTPUT FILE>` option, providing `<TEMPLATE FILE>`, produces
+            a `<TEMPLATE NAME>.rendered.<EXTENSION>` file by default.
 
             .
             ├── my_template.html
