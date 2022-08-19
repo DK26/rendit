@@ -433,7 +433,7 @@ By NOT providing `<TEMPLATE FILE>`, STDIN mode is activated. Template data strea
                     .long_help("Constantly render changes in the template with the context file every 2 seconds by default.")
                     .long("watch")
                     .short('w')
-                    .value_name("SECONDS")
+                    .value_name("[optional] SECONDS")
                     .default_missing_value("2")
                     .value_parser(value_parser!(u64))
                     .display_order(7)
