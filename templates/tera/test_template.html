@@ -1,0 +1,22 @@
+{% import "macros.html" as macros %}
+<!--TEMPLATE tera-->
+<!--Tera Tutorial: https://tera.netlify.app/docs/#templates-->
+<!--Tera Supported Time Formats: https://docs.rs/chrono/0.4.19/chrono/format/strftime/index.html-->
+<!DOCTYPE html>
+<HTML>
+Macro Test: {{ macros::type(id=2) }}
+
+
+<BODY>
+    <H1>Hello, World!</H1>
+    <HR>
+    <FONT SIZE="4">Welcome, {{ user.name | linebreaksbr | safe }} !</FONT>
+    <BR>Homepage: {{ user.homepage | safe }}
+    <BR> Inject: {{ inject }}
+    <BR> Jerusalem Time: <I>{{ now() | date(format="%Y-%m-%d %H:%M:%S", timezone="Asia/Jerusalem") }}</I>
+    <BR> Berlin Time: <I>{{ now() | date(format="%Y-%m-%d %H:%M:%S", timezone="Europe/Berlin") }}</I>
+    <HR>
+    <BR>Some Numbers: <I>{{ numbers | join(sep=", ") }}</I>
+</BODY>
+
+</HTML>

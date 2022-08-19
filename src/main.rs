@@ -30,6 +30,13 @@ type EngineName = String;
 // TODO: Enable usage of external templates for `include` [Liquid](https://github.com/leftwm/leftwm/issues/439)
 // TODO: Logic for printing errors within `--watch`, should apply only when `.ctx.json` or template are changing. Maybe we should loop just when changes are detected while it checks for changes every 2 seconds by default.
 
+// TODO: 18.8.2022
+// TODO: Add modes to make the tool more explicit for the user's intent and separate complex logical flows from each other.
+// TODO: Manual Mode (Default. Doesn't do anything smart or automatically. Only what is explicitly configured)
+// TODO: Auto Mode (what we have now, but make it work under the explicit `--automode` or `--mode auto` option) + Detects if we use a file or STDIN/PIPE/PIPELINE mode
+// TODO: File Mode (what we have now, but without supporting STDIN) `--filemode` or `--mode file`
+// TODO: STDIN Mode (Read from STDIN) `--pipe mode`, `--pipe` or `--mode pipe`, `--stdin`, `--mode stdin`
+
 const DEFAULT_CONTEXT_FILE: &str = "default.ctx.json";
 
 /// Scan the template for reference to other templates, such as:
@@ -270,6 +277,39 @@ impl FromStr for TemplateEngine {
     }
 }
 
+// impl FromStr for TemplateEngine {
+//     type Err = RenditError;
+
+//     fn from_str(s: &str) -> Result<Self, Self::Err> {
+//         let res = match s.to_lowercase().as_str() {
+//             "tera" => TemplateEngine::Tera,
+//             "liquid" | "liq" => TemplateEngine::Liquid,
+//             "handlebars" | "hbs" => TemplateEngine::Handlebars,
+//             "none" => TemplateEngine::None,
+//             _ => return Err(RenditError::UnknownEngine(s.to_owned())),
+//         };
+//         Ok(res)
+//     }
+// }
+
+pub fn rendered_path<P: AsRef<Path>>(input_path: P) -> PathBuf {
+    let file_extension = input_path.as_ref().extension();
+
+    match file_extension {
+        Some(os_path_ext) => {
+            let path_ext = os_path_ext.to_string_lossy().to_lowercase();
+
+            if path_ext != "none" && path_ext.parse::<TemplateEngine>().is_ok() {
+                input_path.as_ref().with_extension("")
+            } else {
+                let new_ext = format!("rendered.{path_ext}");
+                input_path.as_ref().with_extension(new_ext)
+            }
+        }
+        None => input_path.as_ref().with_extension(String::from("rendered")),
+    }
+}
+
 enum Template {
     Tera(Contents),
     Handlebars(Contents),
@@ -506,31 +546,6 @@ Use the `--stderr` switch to avoid including the logger messages in the final ou
 //     }
 // }
 
-// FIXME: Using `.html.tera` extension, doesn't produce `.html` rendered output
-// struct TemplateFile<'path> {
-//     path: Rc<PathBuf>,
-//     parts: TemplateParts<'path>,
-// }
-// struct TemplateParts<'path> {
-//     name: Cow<'path, str>,
-//     extension: Option<&'path OsStr>,
-//     kind: Option<TemplateEngine>,
-// }
-// impl<'path> From<PathBuf> for TemplateFile<'path> {
-//     fn from(path: PathBuf) -> Self {
-//         let path = Rc::new(path);
-//         let s =
-//         TemplateFile {
-//             path: path.clone(),
-//             parts: TemplateParts {
-//                 name: path.to_string_lossy(),
-//                 extension: path.as_path().extension(),
-//                 kind: (),
-//             },
-//         }
-//     }
-// }
-
 /// Write `content` to file `path` using BufWriter
 fn write_to_file<P: AsRef<Path>>(content: &str, path: P) -> Result<()> {
     let file = OpenOptions::new()
@@ -603,13 +618,12 @@ impl<'arg> From<&TemplateData<'arg>> for Template {
     fn from(td: &TemplateData) -> Self {
         // Checking for template file extension to determine the template engine.
         // Notice the early returns.
-        if let Some(ref template_file) = td.file_path {
-            // if let Some(extension) = template_file.extension() {
-            if let Some(ref extension) = template_file.parts.extension {
-                // let file_extension = &*extension.to_string_lossy();
-                let file_extension = extension.as_str();
+        if let Some(template_file) = td.file_path {
+            if let Some(extension) = template_file.extension() {
+                // if let Some(ref extension) = template_file.parts.extension {
+                let file_extension = &*extension.to_string_lossy();
+                // let file_extension = extension.as_str();
 
-                // FIXME: Using `.html.tera` extension, doesn't produce `.html` rendered output
                 let contents = td.contents.clone();
                 match file_extension {
                     "tera" => return Template::Tera(contents),
@@ -661,69 +675,16 @@ fn stdin_read() -> Result<String> {
 
 #[derive(thiserror::Error, Debug)]
 pub enum RenditError {
-    #[error("Path must not be empty or root.")]
-    IllegalPath,
-}
+    #[error("Path must not be empty or root")]
+    EmptyPath,
 
-struct TemplateFile<'path> {
-    path: Rc<&'path Path>,
-    parts: FileParts,
-}
-
-impl<'path> TryFrom<&'path Path> for TemplateFile<'path> {
-    type Error = RenditError;
-
-    fn try_from(path: &'path Path) -> Result<Self, Self::Error> {
-        let path = Rc::new(path);
-        let file = TemplateFile {
-            path: path.clone(),
-            parts: FileParts::try_from(*path)?,
-        };
-        Ok(file)
-    }
-}
-
-struct FileParts {
-    name: String,
-    kind: Option<String>,
-    extension: Option<String>,
-}
-
-impl TryFrom<&Path> for FileParts {
-    type Error = RenditError;
-
-    fn try_from(pb: &Path) -> Result<Self, Self::Error> {
-        let path_string = pb
-            .file_name()
-            .ok_or(RenditError::IllegalPath)?
-            .to_string_lossy();
-        let parts: Vec<&str> = path_string.split_terminator('.').collect();
-        let res = match parts.len() {
-            3 => FileParts {
-                name: parts[0].to_owned(),
-                kind: Some(parts[1].to_owned()),
-                extension: Some(parts[2].to_owned()),
-            },
-            2 => FileParts {
-                name: parts[0].to_owned(),
-                kind: None,
-                extension: Some(parts[1].to_owned()),
-            },
-            1 => FileParts {
-                name: parts[0].to_owned(),
-                kind: None,
-                extension: None,
-            },
-            _ => return Err(RenditError::IllegalPath),
-        };
-        Ok(res)
-    }
+    #[error("Provided unsupported engine `{0}`")]
+    UnknownEngine(String),
 }
 
 struct TemplateData<'a> {
     contents: Rc<String>,
-    // file_path: Option<&'a AbsolutePath>,
-    file_path: Option<TemplateFile<'a>>,
+    file_path: Option<&'a AbsolutePath>,
 }
 
 // #[allow(unused)]
@@ -733,11 +694,6 @@ struct ContextData {
 }
 
 struct RenderedTemplate(Rc<String>);
-// struct RenderedTemplate(String);
-// enum RenderResult<'contents> {
-//     Processed(RenderedTemplate),
-//     Raw(&'contents str),
-// }
 
 enum DetectionMethod {
     Auto,
@@ -829,13 +785,14 @@ fn render<'a>(
             //     }
             // }
 
-            let templates_root_file = if let Some(ref template_file) = template_data.file_path {
-                Cow::Borrowed(*template_file.path)
+            let templates_root_file = if let Some(template_file) = template_data.file_path {
+                Cow::Borrowed(template_file)
             } else {
                 let abs_path: AbsolutePath = std::env::current_exe()
                     .context("Failed to get current exe path")?
                     .into();
-                Cow::Owned(abs_path.into_inner())
+                // Cow::Owned(abs_path.into_inner())
+                Cow::Owned(abs_path)
             };
 
             let templates_home_dir = templates_root_file
@@ -872,15 +829,15 @@ fn render<'a>(
             let template_type = if let TemplateExtension::Force(ext) = template_extension {
                 log::debug!("Tera: Forcing extension \"{ext}\"");
                 Cow::Borrowed(ext)
-            } else if let Some(ref path) = template_data.file_path {
-                // match path.extension() {
-                //     Some(ext) => ext.to_string_lossy(),
-                //     None => Cow::Borrowed("html"),
-                // }
-                match path.parts.extension {
-                    Some(ref ext) => Cow::Borrowed(ext.as_str()),
+            } else if let Some(path) = template_data.file_path {
+                match path.extension() {
+                    Some(ext) => ext.to_string_lossy(),
                     None => Cow::Borrowed("html"),
                 }
+                // match path.parts.extension {
+                //     Some(ref ext) => Cow::Borrowed(ext.as_str()),
+                //     None => Cow::Borrowed("html"),
+                // }
             } else {
                 Cow::Borrowed("html")
             };
@@ -996,8 +953,9 @@ fn main() -> Result<()> {
                     Rc::new(contents)
                 },
                 file_path: {
-                    let path: &Path = template_file.as_ref();
-                    Some(path.try_into()?)
+                    // let path: &Path = template_file.as_ref();
+                    // Some(path.try_into()?)
+                    Some(template_file)
                 },
             }
         } else {
@@ -1109,18 +1067,7 @@ fn main() -> Result<()> {
                 opener::open(&output_arg)?;
             }
         } else if let Some(template_file) = template_file_arg {
-            let mut extension = String::from("rendered");
-
-            if let Some(ext) = template_file.extension() {
-                extension.push('.');
-                extension.push_str(&*ext.to_string_lossy());
-            }
-
-            let mut output_path = template_file.to_path_buf();
-            output_path.set_extension(extension);
-
-            let output_path: AbsolutePath = output_path.into();
-
+            let output_path: AbsolutePath = rendered_path(template_file).into();
             log::info!("Rendered output file: \"{output_path}\"");
             write_to_file(&rendered_template.0, &output_path)?;
 
