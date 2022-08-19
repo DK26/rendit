@@ -364,7 +364,7 @@ impl Args {
                     .long_help(
 r#"The template file to render.
     
-Unless using the `--context <CONTEXT FILE>`option, this requires either the 
+Unless using the `--context <CONTEXT FILE>` option, this requires either the 
 `<TEMPLATE NAME>.ctx.json` or the `default.ctx.json` context files to be present in the template's directory.
 
 [Example]
