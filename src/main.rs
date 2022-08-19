@@ -250,6 +250,7 @@ impl Deref for AbsolutePath {
 }
 
 /// Supported template engines
+#[non_exhaustive]
 #[derive(Clone, Copy, Debug, PartialEq, Sequence, strum_macros::Display)]
 enum TemplateEngine {
     Tera,
@@ -310,6 +311,7 @@ pub fn rendered_path<P: AsRef<Path>>(input_path: P) -> PathBuf {
     }
 }
 
+#[non_exhaustive]
 enum Template {
     Tera(Contents),
     Handlebars(Contents),
@@ -673,6 +675,7 @@ fn stdin_read() -> Result<String> {
     Ok(result)
 }
 
+#[non_exhaustive]
 #[derive(thiserror::Error, Debug)]
 pub enum RenditError {
     #[error("Path must not be empty or root")]
