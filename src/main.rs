@@ -359,7 +359,7 @@ impl Args {
 
             clap::Command::new(env!("CARGO_PKG_NAME"))
             .version(env!("CARGO_PKG_VERSION"))
-            .about(about.as_str())
+            .about(about)
             .arg(
                 Arg::new("template_file")
                     .value_name("TEMPLATE FILE")
