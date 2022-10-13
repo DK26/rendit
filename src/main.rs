@@ -39,19 +39,18 @@ type EngineName = String;
 // TODO: File Mode (what we have now, but without supporting STDIN) `--filemode` or `--mode file`
 // TODO: STDIN Mode (Read from STDIN) `--pipe mode`, `--pipe` or `--mode pipe`, `--stdin`, `--mode stdin`
 
-macro_rules! qrcode {
-    ($val:expr) => {{
-        let code = QrCode::new($val).unwrap();
-        let image = code
-            .render::<unicode::Dense1x2>()
-            .dark_color(unicode::Dense1x2::Dark)
-            .light_color(unicode::Dense1x2::Light)
-            .quiet_zone(true)
-            .build();
-        image
-    }};
+fn qrcode_string(value: &str) -> String {
+    let code = QrCode::new(value).unwrap();
+    let image = code
+        .render::<unicode::Dense1x2>()
+        .dark_color(unicode::Dense1x2::Dark)
+        .light_color(unicode::Dense1x2::Light)
+        .quiet_zone(true)
+        .build();
+    image
 }
 
+// qrcode!(env!("CARGO_PKG_REPOSITORY"))
 const DEFAULT_CONTEXT_FILE: &str = "default.ctx.json";
 
 /// Scan the template for reference to other templates, such as:
@@ -370,7 +369,7 @@ impl Args {
                 author = env!("CARGO_PKG_AUTHORS"),
                 source = env!("CARGO_PKG_REPOSITORY"),
                 license = env!("CARGO_PKG_LICENSE"),
-                qrcode = qrcode!(env!("CARGO_PKG_REPOSITORY"))
+                qrcode = qrcode_string(env!("CARGO_PKG_REPOSITORY"))
             );
 
             clap::Command::new(env!("CARGO_PKG_NAME"))
