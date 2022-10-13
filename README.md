@@ -2,7 +2,7 @@
 
 ![render-template](assets/logo.gif)
 
-CLI tool for rendering templates with local JSON files as context. Supporting multiple template engines.
+CLI tool for rendering templates using local JSON files for context. Supports multiple template engines.
 
 ## 🚧WIP Status🚧
 
@@ -129,11 +129,11 @@ OPTIONS:
 
 ## Supported Template Engines
 
-| Name       | Short / File Extension  | Version | Guide / Manual / Tutorial                                     |  
-| ---------- | ----------------------- | ------- | ------------------------------------------------------------- |
-| Tera       | `tera`                  | v1.17.0 | <https://tera.netlify.app/docs/#templates>                    |
-| Handlebars | `hbs`                   | v4.3.3  | <https://handlebarsjs.com/guide/>                             |
-| Liquid     | `liq`                   | v0.26.0 | <https://github.com/Shopify/liquid/wiki/Liquid-for-Designers> |
+| Name       | Short / File Extension | Version | Guide / Manual / Tutorial                                     |
+| ---------- | ---------------------- | ------- | ------------------------------------------------------------- |
+| Tera       | `tera`                 | v1.17.0 | <https://tera.netlify.app/docs/#templates>                    |
+| Handlebars | `hbs`                  | v4.3.3  | <https://handlebarsjs.com/guide/>                             |
+| Liquid     | `liq`                  | v0.26.0 | <https://github.com/Shopify/liquid/wiki/Liquid-for-Designers> |
 
 ## Template Examples
 
