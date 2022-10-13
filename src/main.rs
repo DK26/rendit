@@ -5,6 +5,8 @@ use path_slash::PathExt;
 // use human_panic::setup_panic;
 use enum_iterator::{all, Sequence};
 use log::LevelFilter;
+use qrcode::render::unicode;
+use qrcode::QrCode;
 use regex::{Regex, RegexBuilder};
 use simplelog::TermLogger;
 use std::{
@@ -36,6 +38,19 @@ type EngineName = String;
 // TODO: Auto Mode (what we have now, but make it work under the explicit `--automode` or `--mode auto` option) + Detects if we use a file or STDIN/PIPE/PIPELINE mode
 // TODO: File Mode (what we have now, but without supporting STDIN) `--filemode` or `--mode file`
 // TODO: STDIN Mode (Read from STDIN) `--pipe mode`, `--pipe` or `--mode pipe`, `--stdin`, `--mode stdin`
+
+macro_rules! qrcode {
+    ($val:expr) => {{
+        let code = QrCode::new($val).unwrap();
+        let image = code
+            .render::<unicode::Dense1x2>()
+            .dark_color(unicode::Dense1x2::Dark)
+            .light_color(unicode::Dense1x2::Light)
+            .quiet_zone(true)
+            .build();
+        image
+    }};
+}
 
 const DEFAULT_CONTEXT_FILE: &str = "default.ctx.json";
 
@@ -350,11 +365,12 @@ impl Args {
     fn parse() -> Self {
         let arg_matches = {
             let about = format!(
-                "{description}\n\n  Author: {author}\n  Source: {source}\n  License: {license}",
+                "{description}\n\n  Author: {author}\n  Source: {source}\n  License: {license}\n{qrcode}",
                 description = env!("CARGO_PKG_DESCRIPTION"),
                 author = env!("CARGO_PKG_AUTHORS"),
                 source = env!("CARGO_PKG_REPOSITORY"),
-                license = env!("CARGO_PKG_LICENSE")
+                license = env!("CARGO_PKG_LICENSE"),
+                qrcode = qrcode!(env!("CARGO_PKG_REPOSITORY"))
             );
 
             clap::Command::new(env!("CARGO_PKG_NAME"))

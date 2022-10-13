@@ -27,6 +27,7 @@ enum-iterator = "1"
 strum = "0.24"
 strum_macros = "0.24"
 path-slash = "0.2"
+qrcode = { version = "0.12", default-features = false }
 
 [profile.release]
 panic = 'abort'
