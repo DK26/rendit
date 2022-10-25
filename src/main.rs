@@ -451,6 +451,7 @@ By NOT providing `<TEMPLATE FILE>`, STDIN mode is activated. Template data strea
                     .long("watch")
                     .short('w')
                     .value_name("[optional] SECONDS")
+                    .num_args(0..=1) // between 0 and 1 occurrences
                     .default_missing_value("2")
                     .value_parser(value_parser!(u64))
                     .display_order(7)
