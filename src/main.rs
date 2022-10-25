@@ -364,11 +364,11 @@ impl Args {
     fn parse() -> Self {
         let arg_matches = {
             let about = format!(
-                "{description}\n\n  Author: {author}\n  Source: {source}\n  License: {license}\n{qrcode}",
+                "{description}\n\n  Author: {author}\n  License: {license}\n  Repository: {repository}\n{qrcode}",
                 description = env!("CARGO_PKG_DESCRIPTION"),
                 author = env!("CARGO_PKG_AUTHORS"),
-                source = env!("CARGO_PKG_REPOSITORY"),
                 license = env!("CARGO_PKG_LICENSE"),
+                repository = env!("CARGO_PKG_REPOSITORY"),
                 qrcode = qrcode_string(env!("CARGO_PKG_REPOSITORY"))
             );
 

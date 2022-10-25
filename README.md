@@ -8,7 +8,7 @@ CLI tool for rendering templates using local JSON files for context. Supports mu
 
 For now, you can download an [alpha release](https://github.com/DK26/rendit/releases) version and play around with it:
 
-[Download  Alpha v0.1.4 (i686-pc-windows)](https://github.com/DK26/rendit/releases/download/v0.1.4-alpha/rendit-alpha-v.0.1.4-windows-i686.7z)
+[Download  Alpha v0.1.5 (i686-pc-windows)](https://github.com/DK26/rendit/releases/download/v0.1.5-alpha/rendit-alpha-v.0.1.5-windows-i686.7z)
 
 ### All Releases
 
@@ -131,8 +131,8 @@ OPTIONS:
 
 | Name       | Short / File Extension | Version | Guide / Manual / Tutorial                                     |
 | ---------- | ---------------------- | ------- | ------------------------------------------------------------- |
-| Tera       | `tera`                 | v1.17.0 | <https://tera.netlify.app/docs/#templates>                    |
-| Handlebars | `hbs`                  | v4.3.3  | <https://handlebarsjs.com/guide/>                             |
+| Tera       | `tera`                 | v1.17.1 | <https://tera.netlify.app/docs/#templates>                    |
+| Handlebars | `hbs`                  | v4.3.5  | <https://handlebarsjs.com/guide/>                             |
 | Liquid     | `liq`                  | v0.26.0 | <https://github.com/Shopify/liquid/wiki/Liquid-for-Designers> |
 
 ## Template Examples
@@ -141,7 +141,7 @@ OPTIONS:
 <summary>Tera (click to expand)</summary>
 
 * Guide: <https://tera.netlify.app/docs/#templates>  
-* Version: **v1.17.0**
+* Version: **v1.17.1**
 * Repository: <https://github.com/Keats/tera>
 * Alternatives: `Jinja2`, `Django`, `Liquid`, `Twig`
   
@@ -160,7 +160,7 @@ A good alternative choice if you are used to template engines such as `Jinja2`, 
 <summary>Handlebars (click to expand)</summary>
 
 * Guide: <https://handlebarsjs.com/guide/>  
-* Version: **v4.3.3**
+* Version: **v4.3.5**
 * Repository: <https://github.com/sunng87/handlebars-rust>
 * Alternatives: `Mustache`
   
