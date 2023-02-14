@@ -966,7 +966,7 @@ fn main() -> Result<()> {
             // File Mode
             TemplateData {
                 contents: {
-                    let contents = fs::read_to_string(&template_file).with_context(|| {
+                    let contents = fs::read_to_string(template_file).with_context(|| {
                         format!("Unable to load template file \"{template_file}\"")
                     })?;
                     Rc::new(contents)
